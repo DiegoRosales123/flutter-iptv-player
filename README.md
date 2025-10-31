@@ -214,7 +214,6 @@ flutter pub run build_runner build --delete-conflicting-outputs
 
 ### Problemas con caracteres especiales (ñ, tildes)
 - La app maneja automáticamente UTF-8 y Latin1
-- Si persisten problemas, reporta en Issues
 
 ## 📄 Licencia
 
@@ -229,3 +228,5 @@ Desarrollado por **Diego**
 ---
 
 ⭐ Si te gusta este proyecto, dale una estrella en GitHub!
+
+> 💡 **Nota**: Solo soy una persona trabajando en este proyecto, así que lo iré actualizando poco a poco cuando tenga tiempo, ya que solo lo hago en mis ratos libres.
