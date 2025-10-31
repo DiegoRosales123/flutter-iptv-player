@@ -2,86 +2,109 @@
 
 Una aplicación profesional de reproducción IPTV construida con Flutter, inspirada en TiviMate.
 
-## Características
+![Dashboard Principal](imagenes/Dashboard_Principal.png)
 
-- Reproducción de canales IPTV en vivo
-- Soporte para playlists M3U/M3U8
-- Gestión de múltiples playlists
-- Sistema de favoritos
-- Búsqueda y filtrado de canales
-- Organización por grupos/categorías
-- Reproductor de video con controles personalizados
-- Base de datos local para almacenamiento persistente
-- Interfaz moderna y responsive
-- Soporte para autenticación (Xtream Codes API)
+## 📸 Capturas de Pantalla
 
-## Tecnologías Utilizadas
+<div align="center">
+  <img src="imagenes/tv-envivo.png" alt="TV en Vivo" width="45%">
+  <img src="imagenes/peliculas-categorias.png" alt="Películas" width="45%">
+</div>
+
+<div align="center">
+  <img src="imagenes/Series-categorias.png" alt="Series" width="45%">
+  <img src="imagenes/Reproductor-peliculas.png" alt="Reproductor" width="45%">
+</div>
+
+## ✨ Características
+
+### 📺 Reproducción
+- **TV en Vivo**: Visualiza canales en tiempo real con interfaz de 3 columnas (categorías, canales, reproductor)
+- **Películas VOD**: Explora y reproduce películas organizadas por categorías
+- **Series**: Navega por temporadas y episodios con información detallada
+- **Controles de video**: Barra de progreso, +10/-10 segundos, control de volumen, pantalla completa
+
+### 🎯 Gestión de Contenido
+- **Soporte M3U/M3U8**: Importa playlists desde URL o archivo local
+- **Autenticación Xtream Codes**: Compatible con servicios IPTV populares
+- **Múltiples playlists**: Gestiona varias listas simultáneamente
+- **Sistema de favoritos**: Marca tus canales y contenidos preferidos
+- **Búsqueda avanzada**: Filtra por nombre, categoría o grupo
+
+### 💾 Almacenamiento
+- **Base de datos Isar**: Almacenamiento local ultrarrápido y eficiente
+- **Caché de contenido**: Reduce tiempo de carga en inicios subsecuentes
+- **Sin conexión**: Accede a tu historial y favoritos offline
+
+### 🎨 Interfaz
+- **Diseño moderno**: Inspirado en TiviMate con Material Design 3
+- **Responsive**: Adaptable a diferentes tamaños de ventana
+- **Tema oscuro**: Interfaz optimizada para visualización prolongada
+- **Idioma español**: Completamente localizado
+
+## 🛠️ Tecnologías Utilizadas
 
 - **Flutter**: Framework de UI multiplataforma
 - **media_kit**: Reproductor de video basado en libmpv/FFmpeg
 - **Isar**: Base de datos NoSQL local de alta velocidad
 - **Material Design 3**: Diseño moderno y adaptable
 
-## Requisitos Previos
+## 📋 Requisitos Previos
 
-### Instalar Flutter
+### 🪟 Windows
+- Windows 10 o superior
+- **Modo Desarrollador activado** (requerido para compilar)
+  - Ejecuta: `start ms-settings:developers`
+  - Activa "Modo de desarrollador"
 
-1. Descarga Flutter SDK desde: https://docs.flutter.dev/get-started/install/windows
-2. Extrae el archivo ZIP en `C:\src\flutter`
-3. Agrega Flutter al PATH del sistema:
-   - Busca "Variables de entorno" en Windows
-   - Edita la variable PATH
-   - Agrega: `C:\src\flutter\bin`
+### 🔧 Herramientas de Desarrollo
 
-4. Verifica la instalación:
+1. **Flutter SDK**: [Descargar](https://docs.flutter.dev/get-started/install/windows)
+   - Extrae en `C:\src\flutter`
+   - Agrega al PATH: `C:\src\flutter\bin`
+
+2. **Visual Studio 2022** (Build Tools)
+   - Con componente "Desktop development with C++"
+   - [Descargar](https://visualstudio.microsoft.com/downloads/)
+
+3. **Verifica la instalación**:
 ```bash
 flutter doctor
 ```
 
-### Instalar Dependencias de Windows
+## 🚀 Instalación y Ejecución
 
+### 1️⃣ Clonar el repositorio
 ```bash
-flutter doctor
+git clone https://github.com/TU_USUARIO/flutter-iptv-player.git
+cd flutter-iptv-player
 ```
 
-Esto te indicará qué necesitas instalar:
-- Visual Studio 2022 (con "Desktop development with C++")
-- Windows SDK
-
-## Instalación del Proyecto
-
-1. Clona o descarga este proyecto
-
-2. Navega a la carpeta del proyecto:
-```bash
-cd C:\Users\root\Desktop\IPTV\iptv_player
-```
-
-3. Instala las dependencias:
+### 2️⃣ Instalar dependencias
 ```bash
 flutter pub get
 ```
 
-4. Genera el código de Isar:
+### 3️⃣ Generar código de Isar
 ```bash
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-## Ejecutar la Aplicación
+### 4️⃣ Ejecutar la aplicación
 
-### En modo desarrollo:
+**Modo desarrollo:**
 ```bash
 flutter run -d windows
 ```
 
-### Construir para Windows:
+**Compilar Release:**
 ```bash
-flutter build windows
+flutter build windows --release
 ```
 
-El ejecutable estará en: `build\windows\runner\Release\`
+El ejecutable estará en: `build\windows\x64\runner\Release\iptv_player.exe`
 
-## Empaquetar como MSIX (Windows Store)
+## 📦 Empaquetar como MSIX (Windows Store)
 
 1. Configura el archivo `pubspec.yaml` con tu información:
    - publisher_display_name
@@ -93,51 +116,69 @@ El ejecutable estará en: `build\windows\runner\Release\`
 flutter pub run msix:create
 ```
 
-El paquete MSIX estará en: `build\windows\runner\Release\`
+El paquete MSIX estará en: `build\windows\x64\runner\Release\`
 
-## Uso
+## 📖 Guía de Uso
 
-### Agregar una Playlist
+### 1. Agregar una Playlist
 
-1. Haz clic en el icono de "+" en la pantalla principal
-2. Ingresa los siguientes datos:
-   - Nombre de la playlist
-   - URL del archivo M3U/M3U8
-   - (Opcional) Usuario y contraseña si tu servicio lo requiere
+Desde el dashboard principal, haz clic en **"Listas"** y luego en el botón **"+"**:
 
-### Ejemplo de URL M3U:
+**Playlist M3U simple:**
 ```
-http://example.com/playlist.m3u
+Nombre: Mi Lista IPTV
+URL: http://example.com/playlist.m3u
 ```
 
-### Ejemplo con autenticación Xtream:
+**Playlist con Xtream Codes:**
 ```
-URL: http://server.com:8080/get.php
-Usuario: tu_usuario
-Contraseña: tu_contraseña
+Nombre: Mi Servicio Premium
+URL: http://server.com:8080/get.php?username=usuario&password=clave&type=m3u_plus
 ```
 
-### Reproducir un Canal
+### 2. Navegar por el Contenido
 
-1. Busca o filtra el canal deseado
-2. Haz clic en el canal
-3. El reproductor se abrirá automáticamente
-4. Toca la pantalla para mostrar/ocultar controles
+- **TV EN VIVO**: Accede a canales en tiempo real con vista de 3 columnas
+  - Columna izquierda: Categorías
+  - Columna central: Lista de canales
+  - Columna derecha: Reproductor integrado
 
-## Estructura del Proyecto
+- **PELÍCULAS**: Explora el catálogo VOD organizado por categorías
+
+- **SERIES**: Navega por series, temporadas y episodios
+
+### 3. Reproducción
+
+**TV en Vivo:**
+- Selecciona una categoría → Elige un canal → Se reproduce automáticamente
+- Botón de pantalla completa para expandir el reproductor
+
+**Películas/Series:**
+- Abre en reproductor de pantalla completa
+- Controles disponibles:
+  - Play/Pausa
+  - Barra de progreso (arrastra para buscar)
+  - +10/-10 segundos
+  - Control de volumen
+  - Pantalla completa
+
+## 📁 Estructura del Proyecto
 
 ```
 lib/
-├── models/           # Modelos de datos (Channel, Playlist, Profile)
-├── services/         # Servicios (Database, M3U Parser)
+├── models/           # Modelos de datos (Channel, Playlist, Series)
+├── services/         # Servicios (Database, M3U Parser, Series Parser)
 ├── screens/          # Pantallas de la aplicación
-│   ├── home_screen.dart
+│   ├── dashboard_screen.dart
+│   ├── live_tv_screen.dart
+│   ├── content_grid_screen.dart
+│   ├── series_grid_screen.dart
 │   ├── video_player_screen.dart
 │   └── playlist_manager_screen.dart
 └── main.dart         # Punto de entrada de la aplicación
 ```
 
-## Características Pendientes
+## 🔮 Características Pendientes
 
 - [ ] Sistema de perfiles de usuario con UI
 - [ ] EPG (Guía electrónica de programación)
@@ -150,11 +191,15 @@ lib/
 - [ ] Soporte para subtítulos
 - [ ] Audio multicanal
 
-## Solución de Problemas
+## 🐛 Solución de Problemas
 
 ### Error: "flutter: command not found"
 - Verifica que Flutter esté en tu PATH
 - Reinicia tu terminal o PowerShell
+
+### Error: "Building with plugins requires symlink support"
+- Activa el Modo Desarrollador en Windows
+- Ejecuta: `start ms-settings:developers`
 
 ### Error al compilar Isar
 ```bash
@@ -167,10 +212,20 @@ flutter pub run build_runner build --delete-conflicting-outputs
 - Verifica tu conexión a internet
 - Algunos canales pueden requerir VPN
 
-## Licencia
+### Problemas con caracteres especiales (ñ, tildes)
+- La app maneja automáticamente UTF-8 y Latin1
+- Si persisten problemas, reporta en Issues
+
+## 📄 Licencia
 
 Este proyecto es de código abierto y está disponible bajo la licencia MIT.
 
-## Créditos
+## 👏 Créditos
 
-Inspirado en TiviMate IPTV Player y el Proyecto esta Creado por mi(Diego)
+Inspirado en **TiviMate IPTV Player** y creado desde cero con Flutter.
+
+Desarrollado por **Diego**
+
+---
+
+⭐ Si te gusta este proyecto, dale una estrella en GitHub!
