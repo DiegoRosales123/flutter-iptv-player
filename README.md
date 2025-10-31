@@ -76,7 +76,7 @@ flutter doctor
 
 ### 1️⃣ Clonar el repositorio
 ```bash
-git clone https://github.com/TU_USUARIO/flutter-iptv-player.git
+git clone https://github.com/DiegoRosales123/flutter-iptv-player.git
 cd flutter-iptv-player
 ```
 
