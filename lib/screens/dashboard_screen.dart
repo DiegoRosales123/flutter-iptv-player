@@ -4,7 +4,10 @@ import 'playlist_manager_screen.dart';
 import 'settings_screen.dart';
 import 'content_grid_screen.dart';
 import 'series_grid_screen.dart';
+import 'profiles_screen.dart';
+import 'epg_screen.dart';
 import '../models/channel.dart';
+import '../models/profile.dart';
 import '../services/database_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -15,6 +18,77 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  Profile? _activeProfile;
+
+  // Avatar options (same as ProfilesScreen)
+  final List<IconData> _avatarIcons = [
+    Icons.person,
+    Icons.face,
+    Icons.child_care,
+    Icons.elderly,
+    Icons.pets,
+    Icons.sports_esports,
+    Icons.music_note,
+    Icons.movie,
+    Icons.sports_soccer,
+    Icons.star,
+    Icons.favorite,
+    Icons.emoji_emotions,
+  ];
+
+  final List<Color> _avatarColors = [
+    Colors.blue,
+    Colors.red,
+    Colors.green,
+    Colors.purple,
+    Colors.orange,
+    Colors.teal,
+    Colors.pink,
+    Colors.indigo,
+    Colors.amber,
+    Colors.cyan,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActiveProfile();
+  }
+
+  Future<void> _loadActiveProfile() async {
+    final profile = await DatabaseService.getActiveProfile();
+    setState(() => _activeProfile = profile);
+  }
+
+  Widget _buildProfileAvatar({double size = 32}) {
+    if (_activeProfile == null) {
+      return Icon(Icons.person_outline, color: Colors.white, size: size * 0.7);
+    }
+
+    int iconIndex = 0;
+    int colorIndex = 0;
+
+    if (_activeProfile!.avatarUrl != null && _activeProfile!.avatarUrl!.contains('_')) {
+      final parts = _activeProfile!.avatarUrl!.split('_');
+      iconIndex = int.tryParse(parts[0]) ?? 0;
+      colorIndex = int.tryParse(parts[1]) ?? 0;
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: _avatarColors[colorIndex.clamp(0, _avatarColors.length - 1)],
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        _avatarIcons[iconIndex.clamp(0, _avatarIcons.length - 1)],
+        size: size * 0.5,
+        color: Colors.white,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -84,11 +158,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SnackBar(content: Text('Notificaciones próximamente')),
                   );
                 }),
-                _buildIconButton(Icons.person_outline, () {
-                  // TODO: Implement profiles
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Perfiles próximamente')),
+                _buildProfileButton(() async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfilesScreen(),
+                    ),
                   );
+                  if (result != null) {
+                    _loadActiveProfile();
+                  }
                 }),
                 _buildIconButton(Icons.refresh, () {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -255,9 +334,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildSecondaryCard(
-                          'Favoritos',
-                          Icons.favorite_outline,
-                          () {},
+                          'Guía EPG',
+                          Icons.calendar_month,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const EpgScreen(),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -304,6 +390,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: Colors.white,
               size: 20,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileButton(VoidCallback onTap) {
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(50),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(50),
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 2,
+              ),
+            ),
+            child: _buildProfileAvatar(size: 32),
           ),
         ),
       ),

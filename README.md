@@ -180,8 +180,8 @@ lib/
 
 ## 🔮 Características Pendientes
 
-- [ ] Sistema de perfiles de usuario con UI
-- [ ] EPG (Guía electrónica de programación)
+- [x] Sistema de perfiles de usuario con UI
+- [x] EPG (Guía electrónica de programación)
 - [ ] Grabación de canales
 - [ ] Timeshift (pausa en vivo)
 - [ ] Modo Picture-in-Picture

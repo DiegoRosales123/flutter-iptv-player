@@ -3,6 +3,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/channel.dart';
 import '../models/playlist.dart';
 import '../models/profile.dart';
+import '../models/epg.dart';
 
 class DatabaseService {
   static late Isar isar;
@@ -14,7 +15,7 @@ class DatabaseService {
     final dir = await getApplicationDocumentsDirectory();
 
     isar = await Isar.open(
-      [ChannelSchema, PlaylistSchema, ProfileSchema],
+      [ChannelSchema, PlaylistSchema, ProfileSchema, EpgChannelSchema, EpgProgramSchema],
       directory: dir.path,
     );
 
