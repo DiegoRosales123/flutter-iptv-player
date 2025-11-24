@@ -6,6 +6,7 @@ import 'content_grid_screen.dart';
 import 'series_grid_screen.dart';
 import 'profiles_screen.dart';
 import 'epg_screen.dart';
+import 'video_player_screen.dart';
 import '../models/channel.dart';
 import '../models/profile.dart';
 import '../services/database_service.dart';
@@ -19,6 +20,11 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   Profile? _activeProfile;
+  List<Channel> _recentChannels = [];
+  List<Channel> _favoriteChannels = [];
+  int _totalChannels = 0;
+  int _totalMovies = 0;
+  int _totalSeries = 0;
 
   // Avatar options (same as ProfilesScreen)
   final List<IconData> _avatarIcons = [
@@ -53,11 +59,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadActiveProfile();
+    _loadDashboardData();
   }
 
   Future<void> _loadActiveProfile() async {
     final profile = await DatabaseService.getActiveProfile();
     setState(() => _activeProfile = profile);
+  }
+
+  Future<void> _loadDashboardData() async {
+    final allChannels = await DatabaseService.getAllChannels();
+    final recent = await DatabaseService.getRecentlyPlayedChannels(limit: 6);
+    final favorites = allChannels.where((c) => c.isFavorite).take(6).toList();
+
+    setState(() {
+      _recentChannels = recent;
+      _favoriteChannels = favorites;
+      _totalChannels = allChannels.where((c) => c.contentType == ContentType.live).length;
+      _totalMovies = allChannels.where((c) => c.contentType == ContentType.movie).length;
+      _totalSeries = allChannels.where((c) => c.contentType == ContentType.series).length;
+    });
   }
 
   Widget _buildProfileAvatar({double size = 32}) {
@@ -92,38 +113,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1929),
+      backgroundColor: const Color(0xFF0B1A2A),
       body: Column(
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(40, 20, 40, 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF0F2438),
+                  const Color(0xFF0B1A2A),
+                ],
+              ),
+            ),
             child: Row(
               children: [
-                // Logo
+                // Logo with glow effect
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white, width: 2),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1E3A5F), Color(0xFF2D5F8D)],
+                    ),
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2D5F8D).withOpacity(0.3),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.tv,
                     color: Colors.white,
-                    size: 32,
+                    size: 28,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 const Text(
                   'IPTV',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.5,
                   ),
                 ),
                 const Spacer(),
-                // Current time
+                // Current time with refined styling
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -131,29 +172,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _getCurrentTime(),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w300,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0.5,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       _getCurrentDate(),
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 16,
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(width: 24),
-                // Action icons
+                const SizedBox(width: 32),
+                // Action icons with better styling
                 _buildIconButton(Icons.search, () {
-                  // TODO: Implement global search
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Búsqueda global próximamente')),
                   );
                 }),
                 _buildIconButton(Icons.notifications_outlined, () {
-                  // TODO: Implement notifications
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Notificaciones próximamente')),
                   );
@@ -186,8 +229,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('Salir'),
-                      content: const Text('¿Estás seguro que deseas cerrar la aplicación?'),
+                      backgroundColor: const Color(0xFF1A2F44),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      title: const Text('Salir', style: TextStyle(color: Colors.white)),
+                      content: const Text(
+                        '¿Estás seguro que deseas cerrar la aplicación?',
+                        style: TextStyle(color: Colors.white70),
+                      ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
@@ -195,7 +243,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         TextButton(
                           onPressed: () {
-                            // Close the app
                             Navigator.pop(context);
                           },
                           style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -211,11 +258,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           // Main content
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(48, 24, 48, 24),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top row - Main categories
+                  // Stats Row
+                  Row(
+                    children: [
+                      _buildStatCard('Canales', _totalChannels, Icons.tv, const Color(0xFF5DD3E5)),
+                      const SizedBox(width: 16),
+                      _buildStatCard('Películas', _totalMovies, Icons.movie, const Color(0xFF4CAF50)),
+                      const SizedBox(width: 16),
+                      _buildStatCard('Series', _totalSeries, Icons.video_library, const Color(0xFFFF9800)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Main categories
                   Row(
                     children: [
                       Expanded(
@@ -234,7 +295,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           isSelected: true,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 24),
                       Expanded(
                         child: _buildMainCard(
                           'PELÍCULAS',
@@ -253,7 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 24),
                       Expanded(
                         child: _buildMainCard(
                           'SERIES',
@@ -271,34 +332,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 32),
 
-                  // Dedication message
-                  Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Aplicacion Inspirada en TvMate y Creada por mi desde 0 en Flutter.',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 16,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.favorite,
-                          color: Colors.red.withOpacity(0.8),
-                          size: 20,
-                        ),
-                      ],
+                  // Continue Watching Section
+                  if (_recentChannels.isNotEmpty) ...[
+                    _buildSectionHeader('Continuar Viendo', Icons.history),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 260,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _recentChannels.length,
+                        itemBuilder: (context, index) {
+                          return _buildChannelCard(_recentChannels[index]);
+                        },
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 32),
+                  ],
 
-                  const SizedBox(height: 24),
+                  // Favorites Section
+                  if (_favoriteChannels.isNotEmpty) ...[
+                    _buildSectionHeader('Mis Favoritos', Icons.favorite),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 260,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _favoriteChannels.length,
+                        itemBuilder: (context, index) {
+                          return _buildChannelCard(_favoriteChannels[index]);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
 
-                  // Bottom row - Secondary options
+                  // Quick Access
                   Row(
                     children: [
                       Expanded(
@@ -316,7 +387,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 20),
                       Expanded(
                         child: _buildSecondaryCard(
                           'Configuración',
@@ -331,7 +402,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 20),
                       Expanded(
                         child: _buildSecondaryCard(
                           'Guía EPG',
@@ -347,6 +418,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                     ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Dedication message
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A3A52).withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: const Color(0xFF2D5F8D).withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Aplicacion Inspirada en TvMate y Creada por mi desde 0 en Flutter.',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Icon(
+                            Icons.favorite,
+                            color: Colors.red.withOpacity(0.7),
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -376,18 +484,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildIconButton(IconData icon, VoidCallback onTap) {
     return Container(
-      margin: const EdgeInsets.only(left: 8),
+      margin: const EdgeInsets.only(left: 10),
       child: Material(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(50),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(50),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF2D5F8D).withOpacity(0.3),
+                  const Color(0xFF1E3A5F).withOpacity(0.2),
+                ],
+              ),
+              border: Border.all(
+                color: const Color(0xFF2D5F8D).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
             child: Icon(
               icon,
-              color: Colors.white,
+              color: Colors.white.withOpacity(0.85),
               size: 20,
             ),
           ),
@@ -432,40 +553,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          height: 280,
+          height: 260,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
-              width: isSelected ? 2 : 1,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF1A3A52).withOpacity(0.6),
+                const Color(0xFF0D2235).withOpacity(0.4),
+              ],
             ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF2D5F8D).withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1A3A52).withOpacity(0.2),
+                blurRadius: 20,
+                spreadRadius: 0,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 80,
-                color: Colors.white,
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF2D5F8D).withOpacity(0.3),
+                      const Color(0xFF1E3A5F).withOpacity(0.2),
+                    ],
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  size: 64,
+                  color: Colors.white.withOpacity(0.9),
+                ),
               ),
               const SizedBox(height: 24),
               Text(
                 title,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
-                  fontSize: 14,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
               ),
             ],
@@ -484,31 +625,284 @@ class _DashboardScreenState extends State<DashboardScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          height: 120,
+          height: 100,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF1A3A52).withOpacity(0.4),
+                const Color(0xFF0D2235).withOpacity(0.3),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF2D5F8D).withOpacity(0.2),
+              width: 1,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
-                size: 32,
-                color: Colors.white,
+                size: 28,
+                color: const Color(0xFF5DD3E5),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Text(
                 title,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w500,
+                  letterSpacing: 0.3,
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, int count, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(0.2),
+              color.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  count.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF5DD3E5), size: 24),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChannelCard(Channel channel) {
+    return Container(
+      width: 320,
+      margin: const EdgeInsets.only(right: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VideoPlayerScreen(channel: channel),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF1A3A52).withOpacity(0.6),
+                  const Color(0xFF0D2235).withOpacity(0.4),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: const Color(0xFF2D5F8D).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image/Thumbnail section
+                Container(
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E3A5F).withOpacity(0.3),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: channel.logo != null && channel.logo!.isNotEmpty
+                            ? Image.network(
+                                channel.logo!,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  channel.contentType == ContentType.live
+                                      ? Icons.tv
+                                      : channel.contentType == ContentType.movie
+                                          ? Icons.movie
+                                          : Icons.video_library,
+                                  color: Colors.white.withOpacity(0.3),
+                                  size: 64,
+                                ),
+                              )
+                            : Icon(
+                                channel.contentType == ContentType.live
+                                    ? Icons.tv
+                                    : channel.contentType == ContentType.movie
+                                        ? Icons.movie
+                                        : Icons.video_library,
+                                color: Colors.white.withOpacity(0.3),
+                                size: 64,
+                              ),
+                      ),
+                      // Play overlay
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withOpacity(0.7),
+                              ],
+                            ),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Play button
+                      Positioned(
+                        bottom: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF5DD3E5).withOpacity(0.9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Info section
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        channel.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (channel.group != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              channel.contentType == ContentType.live
+                                  ? Icons.live_tv
+                                  : channel.contentType == ContentType.movie
+                                      ? Icons.movie
+                                      : Icons.video_library,
+                              color: const Color(0xFF5DD3E5),
+                              size: 14,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                channel.group!,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -85,6 +85,15 @@ class DatabaseService {
     });
   }
 
+  static Future<List<Channel>> getRecentlyPlayedChannels({int limit = 10}) async {
+    return await isar.channels
+        .filter()
+        .lastPlayedIsNotNull()
+        .sortByLastPlayedDesc()
+        .limit(limit)
+        .findAll();
+  }
+
   static Future<List<Channel>> searchChannels(String query) async {
     return await isar.channels
         .filter()
