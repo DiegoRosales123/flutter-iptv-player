@@ -1,5 +1,7 @@
 # IPTV Player Pro
 
+**🇬🇧 English** | **[🇪🇸 Español](README.md)**
+
 A professional IPTV playback application built with Flutter, inspired by TiviMate.
 
 ![Main Dashboard](imagenes/Dashboard_Principal.png)
