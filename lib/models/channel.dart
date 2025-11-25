@@ -23,6 +23,7 @@ class Channel {
   bool isFavorite = false;
   int playCount = 0;
   DateTime? lastPlayed;
+  double rating = 0.0; // TMDB rating (0-10), 0 means not set
 
   // Content type: 'live', 'movie', 'series'
   @enumerated
@@ -106,5 +107,6 @@ class Channel {
         'isFavorite': isFavorite,
         'playCount': playCount,
         'lastPlayed': lastPlayed?.toIso8601String(),
+        'rating': rating,
       };
 }

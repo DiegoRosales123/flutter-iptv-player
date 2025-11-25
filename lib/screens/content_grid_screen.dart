@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/channel.dart';
 import '../services/database_service.dart';
 import '../services/m3u_parser.dart';
+import '../services/tmdb_service.dart';
 import 'video_player_screen.dart';
 
 class ContentGridScreen extends StatefulWidget {
@@ -45,6 +46,28 @@ class _ContentGridScreenState extends State<ContentGridScreen> {
       _filteredContent = content;
       _groupedContent = grouped;
     });
+
+    // Load ratings in the background
+    _loadRatings(content);
+  }
+
+  Future<void> _loadRatings(List<Channel> content) async {
+    for (final channel in content) {
+      if (!mounted) return; // Stop if widget is disposed
+      if (channel.rating == 0) {
+        // Only fetch if rating not already set
+        final cleanedName = TmdbService.cleanContentName(channel.name);
+        final rating = await TmdbService.getMovieRating(cleanedName);
+        if (rating != null && rating > 0) {
+          await DatabaseService.updateChannelRating(channel, rating);
+          if (mounted) {
+            setState(() {
+              channel.rating = rating;
+            });
+          }
+        }
+      }
+    }
   }
 
   void _filterContent() {
@@ -71,7 +94,7 @@ class _ContentGridScreenState extends State<ContentGridScreen> {
         filtered.sort((a, b) => a.name.compareTo(b.name));
         break;
       case 'rating':
-        filtered.sort((a, b) => b.playCount.compareTo(a.playCount));
+        filtered.sort((a, b) => b.rating.compareTo(a.rating));
         break;
       case 'added':
       default:
@@ -400,8 +423,6 @@ class _ContentGridScreenState extends State<ContentGridScreen> {
   }
 
   Widget _buildContentCard(Channel content) {
-    final rating = (content.playCount * 0.8).clamp(0.0, 10.0);
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -463,29 +484,41 @@ class _ContentGridScreenState extends State<ContentGridScreen> {
                             ),
                     ),
 
-                    // Rating badge
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.blue,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                    // Rating badge (show only if rating > 0)
+                    if (content.rating > 0)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getRatingColor(content.rating),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                content.rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -509,5 +542,19 @@ class _ContentGridScreenState extends State<ContentGridScreen> {
         ),
       ),
     );
+  }
+
+  Color _getRatingColor(double rating) {
+    if (rating >= 8.0) {
+      return const Color(0xFF4CAF50); // Green for excellent
+    } else if (rating >= 7.0) {
+      return const Color(0xFF8BC34A); // Light green for very good
+    } else if (rating >= 6.0) {
+      return const Color(0xFFFFC107); // Amber for good
+    } else if (rating >= 5.0) {
+      return const Color(0xFFFF9800); // Orange for fair
+    } else {
+      return const Color(0xFFF44336); // Red for poor
+    }
   }
 }

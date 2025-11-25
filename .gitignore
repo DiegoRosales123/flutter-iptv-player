@@ -65,3 +65,7 @@ certificate.*
 *.msix
 *.appx
 *.appxbundle
+
+# Configuration files with sensitive data (API keys)
+# To use: Copy config.json.example to config.json and fill in your API keys
+config.json

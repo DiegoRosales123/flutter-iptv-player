@@ -85,6 +85,13 @@ class DatabaseService {
     });
   }
 
+  static Future<void> updateChannelRating(Channel channel, double rating) async {
+    await isar.writeTxn(() async {
+      channel.rating = rating;
+      await isar.channels.put(channel);
+    });
+  }
+
   static Future<List<Channel>> getRecentlyPlayedChannels({int limit = 10}) async {
     return await isar.channels
         .filter()

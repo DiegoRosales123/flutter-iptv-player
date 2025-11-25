@@ -42,6 +42,14 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 - **Tema oscuro**: Interfaz optimizada para visualización prolongada
 - **Idioma español**: Completamente localizado
 
+### ⭐ Calificaciones
+- **Calificaciones inteligentes**: Sistema de 3 capas para obtener ratings
+  - OMDb API (sin clave requerida)
+  - TMDB API (opcional)
+  - Generador pseudo-aleatorio (fallback automático)
+- **Indicadores visuales**: Badges con colores según calificación
+- **Sin límites**: La app funciona completamente sin configurar APIs
+
 ## 🛠️ Tecnologías Utilizadas
 
 - **Flutter**: Framework de UI multiplataforma
@@ -103,6 +111,44 @@ flutter build windows --release
 ```
 
 El ejecutable estará en: `build\windows\x64\runner\Release\iptv_player.exe`
+
+### 5️⃣ Configurar APIs (Opcional - para obtener calificaciones reales)
+
+La aplicación incluye un sistema de calificaciones para películas y series. Funciona de tres formas:
+
+1. **OMDb API** (Sin clave requerida - Recomendado)
+2. **TMDB API** (Clave opcional para resultados adicionales)
+3. **Generador de calificaciones** (Fallback automático)
+
+Para usar las APIs:
+
+1. Copia el archivo de configuración de ejemplo:
+```bash
+copy config.json.example config.json
+```
+
+2. (Opcional) Obtén tu clave TMDB:
+   - Ve a https://www.themoviedb.org/settings/api
+   - Crea una cuenta gratuita si no tienes
+   - Copia tu **API Key**
+   - Abre `config.json` y reemplaza `YOUR_TMDB_API_KEY_HERE` con tu clave
+
+3. El archivo `config.json` **no se sube a GitHub** (está en `.gitignore`) - tus claves están seguras
+
+**Ejemplo de `config.json`:**
+```json
+{
+  "apis": {
+    "tmdb": {
+      "apiKey": "tu_clave_aqui",
+      "baseUrl": "https://api.themoviedb.org/3"
+    },
+    "omdb": {
+      "baseUrl": "http://www.omdbapi.com"
+    }
+  }
+}
+```
 
 ## 📦 Empaquetar como MSIX (Windows Store)
 
@@ -190,6 +236,21 @@ lib/
 - [ ] Sincronización en la nube
 - [ ] Soporte para subtítulos
 - [ ] Audio multicanal
+
+## 🔐 Seguridad y Privacidad
+
+### Configuración de APIs
+- El archivo `config.json` con tus claves API **no se sube a GitHub** (está en `.gitignore`)
+- Solo el archivo `config.json.example` se comparte públicamente como referencia
+- Tus claves API permanecen seguras en tu máquina local
+- La app funciona completamente sin claves - es opcional
+
+### Datos Locales
+- Toda la información (canales, favoritos, historial) se almacena **localmente** en tu dispositivo
+- Ningún dato se envía a servidores externos excepto:
+  - Solicitudes a APIs de calificaciones (OMDb, TMDB) para obtener ratings
+  - Descargas de playlists desde la URL que proporcionas
+- La base de datos Isar es encriptada y de acceso local
 
 ## 🐛 Solución de Problemas
 

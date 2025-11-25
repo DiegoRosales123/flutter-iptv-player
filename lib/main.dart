@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'services/database_service.dart';
+import 'services/config_service.dart';
 import 'services/m3u_parser.dart';
 import 'screens/dashboard_screen.dart';
 
@@ -9,6 +10,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+    // Initialize Config Service
+    await ConfigService.initialize();
+    print('Config service initialized');
+
     // Initialize MediaKit
     MediaKit.ensureInitialized();
     print('MediaKit initialized');

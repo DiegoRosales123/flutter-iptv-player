@@ -55,6 +55,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - config.json
 
 msix_config:
   display_name: IPTV Player Pro

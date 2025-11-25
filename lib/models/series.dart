@@ -5,7 +5,7 @@ class Series {
   final String? director;
   final String? genre;
   final String? releaseDate;
-  final double? rating;
+  double? rating;
   final String? plot;
   final List<Season> seasons;
 
