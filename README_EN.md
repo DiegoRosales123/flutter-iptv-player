@@ -8,14 +8,21 @@ A professional IPTV playback application built with Flutter, inspired by TiviMat
 
 ## 📸 Screenshots
 
+### Main Navigation
 <div align="center">
   <img src="imagenes/tv-envivo.png" alt="Live TV" width="45%">
-  <img src="imagenes/peliculas-categorias.png" alt="Movies" width="45%">
+  <img src="imagenes/peliculas-categorias.png" alt="Movies by Category" width="45%">
 </div>
 
 <div align="center">
-  <img src="imagenes/Series-categorias.png" alt="Series" width="45%">
-  <img src="imagenes/Reproductor-peliculas.png" alt="Player" width="45%">
+  <img src="imagenes/Series-categorias.png" alt="Series by Category" width="45%">
+  <img src="imagenes/Detalle-Peliculas.png" alt="Movie Details" width="45%">
+</div>
+
+### Series Details and Video Player
+<div align="center">
+  <img src="imagenes/Detalle_series.png" alt="Series Details with Episodes" width="45%">
+  <img src="imagenes/Reproductor-peliculas.png" alt="Video Player" width="45%">
 </div>
 
 ## ✨ Features

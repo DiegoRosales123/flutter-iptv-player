@@ -8,14 +8,21 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 
 ## 📸 Capturas de Pantalla
 
+### Navegación Principal
 <div align="center">
   <img src="imagenes/tv-envivo.png" alt="TV en Vivo" width="45%">
-  <img src="imagenes/peliculas-categorias.png" alt="Películas" width="45%">
+  <img src="imagenes/peliculas-categorias.png" alt="Películas por Categorías" width="45%">
 </div>
 
 <div align="center">
-  <img src="imagenes/Series-categorias.png" alt="Series" width="45%">
-  <img src="imagenes/Reproductor-peliculas.png" alt="Reproductor" width="45%">
+  <img src="imagenes/Series-categorias.png" alt="Series por Categorías" width="45%">
+  <img src="imagenes/Detalle-Peliculas.png" alt="Detalle de Película" width="45%">
+</div>
+
+### Detalle de Series y Reproductor
+<div align="center">
+  <img src="imagenes/Detalle_series.png" alt="Detalle de Serie con Episodios" width="45%">
+  <img src="imagenes/Reproductor-peliculas.png" alt="Reproductor de Video" width="45%">
 </div>
 
 ## ✨ Características
