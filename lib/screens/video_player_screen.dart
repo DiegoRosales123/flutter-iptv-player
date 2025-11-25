@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:window_manager/window_manager.dart';
 import '../models/channel.dart';
 import '../services/database_service.dart';
 
@@ -26,6 +27,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isControlsVisible = true;
   bool _isLoading = true;
   String? _error;
+  bool _isFullscreen = false;
   final FocusNode _focusNode = FocusNode();
   Timer? _hideControlsTimer;
 
@@ -43,6 +45,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       await player.open(Media(widget.channel.url));
       // Disable subtitles by default
       player.setSubtitleTrack(SubtitleTrack.no());
+
+      // Resume from saved progress if available
+      if (widget.channel.watchedMilliseconds > 0) {
+        await player.seek(Duration(milliseconds: widget.channel.watchedMilliseconds));
+      }
+
       await DatabaseService.updateChannelPlayCount(widget.channel);
       setState(() {
         _isLoading = false;
@@ -82,8 +90,30 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void dispose() {
     _hideControlsTimer?.cancel();
     _focusNode.dispose();
+
+    // Exit fullscreen before disposing
+    if (_isFullscreen) {
+      windowManager.setFullScreen(false);
+    }
+
+    // Save watch progress before disposing
+    _saveWatchProgress();
+
     player.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveWatchProgress() async {
+    final duration = player.state.duration;
+    final position = player.state.position;
+
+    if (duration != null && position != null) {
+      widget.channel.watchedMilliseconds = position.inMilliseconds;
+      widget.channel.totalMilliseconds = duration.inMilliseconds;
+      await DatabaseService.isar.writeTxn(() async {
+        await DatabaseService.isar.channels.put(widget.channel);
+      });
+    }
   }
 
   void _handleKeyEvent(KeyEvent event) {
@@ -120,9 +150,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       player.setVolume((currentVolume - 10).clamp(0, 100));
       _showControlsTemporarily();
     }
-    // Escape - Go back
+    // F or F11 - Toggle fullscreen
+    else if (key == LogicalKeyboardKey.keyF || key == LogicalKeyboardKey.f11) {
+      _toggleFullscreen();
+    }
+    // Escape - Exit fullscreen or go back
     else if (key == LogicalKeyboardKey.escape) {
-      Navigator.pop(context);
+      if (_isFullscreen) {
+        _toggleFullscreen();
+      } else {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -154,6 +192,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void _toggleFavorite() async {
     await DatabaseService.toggleFavorite(widget.channel);
     setState(() {});
+  }
+
+  Future<void> _toggleFullscreen() async {
+    setState(() {
+      _isFullscreen = !_isFullscreen;
+    });
+
+    await windowManager.setFullScreen(_isFullscreen);
+    _showControlsTemporarily();
   }
 
   void _showAudioTrackDialog() {
@@ -447,7 +494,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           onHover: (_) => _showControls(),
           onEnter: (_) => _showControls(),
           child: GestureDetector(
-            onTap: _toggleControls,
+            onTap: _isControlsVisible ? _toggleControls : _showControls,
             child: Stack(
             children: [
               // Video Player
@@ -653,6 +700,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             size: 20,
                           ),
                           onPressed: _toggleFavorite,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          tooltip: _isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa',
+                          onPressed: _toggleFullscreen,
                         ),
                       ),
                     ],

@@ -2,17 +2,26 @@ import 'package:isar/isar.dart';
 
 part 'playlist.g.dart';
 
+enum PlaylistSourceType {
+  m3u,
+  xtreamCodes,
+}
+
 @collection
 class Playlist {
   Id id = Isar.autoIncrement;
 
   late String name;
-  late String url;
+  late String url; // M3U URL or Xtream baseUrl
   String? username;
   String? password;
   DateTime? lastUpdated;
   bool isActive = true;
   int channelCount = 0;
+
+  // Xtream Codes specific
+  @enumerated
+  PlaylistSourceType sourceType = PlaylistSourceType.m3u;
 
   Playlist();
 
@@ -32,8 +41,14 @@ class Playlist {
   }
 
   String getFullUrl() {
+    // For Xtream Codes, return the base URL (credentials handled separately)
+    if (sourceType == PlaylistSourceType.xtreamCodes) {
+      return url;
+    }
+
+    // For M3U format
     if (username != null && password != null) {
-      // Handle Xtream Codes API format
+      // Handle Xtream Codes API format in M3U
       if (url.contains('get.php')) {
         return '$url?username=$username&password=$password&type=m3u_plus';
       }
@@ -45,6 +60,8 @@ class Playlist {
     }
     return url;
   }
+
+  bool get isXtreamCodes => sourceType == PlaylistSourceType.xtreamCodes;
 
   Map<String, dynamic> toJson() => {
         'id': id,

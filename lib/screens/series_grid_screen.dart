@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:math';
 import '../models/channel.dart';
 import '../models/series.dart';
+import '../models/series_item.dart';
 import '../services/database_service.dart';
 import '../services/series_parser.dart';
 import '../services/tmdb_service.dart';
+import '../providers/content_provider.dart';
 import 'series_detail_screen.dart';
 
 class SeriesGridScreen extends StatefulWidget {
@@ -28,13 +31,37 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
     _loadSeries();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // No longer need Xtream-specific loading - everything is in database
+  }
+
   Future<void> _loadSeries() async {
     final allChannels = await DatabaseService.getAllChannels();
     final seriesChannels = allChannels
         .where((c) => c.contentType == ContentType.series)
         .toList();
 
-    final seriesMap = SeriesParser.groupIntoSeries(seriesChannels);
+    // Separar series de Xtream (URL empieza con "xtream://") y series normales (M3U)
+    final xtreamSeries = seriesChannels.where((c) => c.url.startsWith('xtream://series/')).toList();
+    final m3uSeries = seriesChannels.where((c) => !c.url.startsWith('xtream://series/')).toList();
+
+    // Procesar series M3U normalmente (con episodios en la base de datos)
+    final seriesMap = SeriesParser.groupIntoSeries(m3uSeries);
+
+    // Para series de Xtream, crear objetos Series sin episodios (se cargarán bajo demanda)
+    for (var channel in xtreamSeries) {
+      final key = '${channel.group ?? "Uncategorized"}_${channel.name}';
+      seriesMap[key] = Series(
+        name: channel.name,
+        poster: channel.logo,
+        backdrop: channel.logo,
+        plot: channel.description,
+        seasons: [], // Sin episodios por ahora
+        rating: 0.0, // Se asignará después
+      );
+    }
 
     // Assign ratings to series
     _assignRatingsToSeries(seriesMap.values.toList());
@@ -71,7 +98,8 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
     for (final s in series) {
       if (!mounted) return; // Stop if widget is disposed
       final cleanedName = TmdbService.cleanContentName(s.name);
-      final rating = await TmdbService.getSeriesRating(cleanedName);
+      // Load only from real APIs (not fallback/pseudo-random)
+      final rating = await TmdbService.getSeriesRatingFromApi(cleanedName);
       if (rating != null && rating > 0) {
         if (mounted) {
           setState(() {
@@ -169,6 +197,9 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Everything is now in database - no need for Xtream-specific logic
+    final categories = ['All', ..._categories.keys];
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F1E2B),
       body: Row(
@@ -303,60 +334,60 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
 
                       // Category items
                       ..._categories.entries.map((entry) {
-                        final category = entry.key;
-                        final count = entry.value;
-                        final isSelected = _selectedCategory == category;
+                              final category = entry.key;
+                              final count = entry.value;
+                              final isSelected = _selectedCategory == category;
 
-                        return Material(
-                          color: isSelected
-                              ? const Color(0xFF2D4A5E)
-                              : Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                _selectedCategory = category;
-                              });
-                              _filterSeries();
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 16,
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      category.toUpperCase(),
-                                      style: TextStyle(
-                                        color: isSelected
-                                            ? const Color(0xFF5DD3E5)
-                                            : Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: isSelected
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                              return Material(
+                                color: isSelected
+                                    ? const Color(0xFF2D4A5E)
+                                    : Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedCategory = category;
+                                    });
+                                    _filterSeries();
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 16,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            category.toUpperCase(),
+                                            style: TextStyle(
+                                              color: isSelected
+                                                  ? const Color(0xFF5DD3E5)
+                                                  : Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Text(
+                                          count.toString(),
+                                          style: TextStyle(
+                                            color: isSelected
+                                                ? const Color(0xFF5DD3E5)
+                                                : Colors.white54,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  Text(
-                                    count.toString(),
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? const Color(0xFF5DD3E5)
-                                          : Colors.white54,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                                ),
+                              );
+                            }).toList(),
                     ],
                   ),
                 ),
@@ -475,44 +506,141 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
                   ),
                 ),
 
-                // Series Grid
+                // Series Grid with Sections
                 Expanded(
-                  child: _filteredSeries.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.movie_outlined,
-                                size: 64,
-                                color: Colors.white.withOpacity(0.3),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No se encontraron series',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.5),
-                                  fontSize: 16,
+                  child: _selectedCategory == null
+                          ? CustomScrollView(
+                              slivers: [
+                                // Trending Section
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                                    child: _buildSectionHeader('En Tendencia', Icons.whatshot),
+                                  ),
                                 ),
+                                SliverToBoxAdapter(
+                                  child: SizedBox(
+                                    height: 280,
+                                    child: _allSeries.isEmpty
+                                        ? Center(
+                                            child: Text(
+                                              'Sin contenido',
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(0.5),
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          )
+                                        : ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                                            itemCount: _getTrendingSeries().length,
+                                            itemBuilder: (context, index) {
+                                              final series = _getTrendingSeries()[index];
+                                              return _buildTrendingSeriesCard(series, index + 1);
+                                            },
+                                          ),
+                                  ),
+                                ),
+
+                                // Recently Watched Section
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
+                                    child: _buildSectionHeader('Visto Recientemente', Icons.history),
+                                  ),
+                                ),
+                                SliverToBoxAdapter(
+                                  child: SizedBox(
+                                    height: 220,
+                                    child: _allSeries.values
+                                            .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
+                                            .isEmpty
+                                        ? Center(
+                                            child: Text(
+                                              'Sin contenido',
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(0.5),
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          )
+                                        : ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                                            itemCount: _allSeries.values
+                                                .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
+                                                .length,
+                                            itemBuilder: (context, index) {
+                                              final recentlyWatched = _allSeries.values
+                                                  .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
+                                                  .toList();
+                                              if (index < recentlyWatched.length) {
+                                                return _buildHorizontalSeriesCard(recentlyWatched[index]);
+                                              }
+                                              return const SizedBox.shrink();
+                                            },
+                                          ),
+                                  ),
+                                ),
+
+                                // Favorites Section
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
+                                    child: _buildSectionHeader('Mis Favoritos', Icons.favorite),
+                                  ),
+                                ),
+                                SliverToBoxAdapter(
+                                  child: SizedBox(
+                                    height: 220,
+                                    child: _allSeries.values
+                                            .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
+                                            .isEmpty
+                                        ? Center(
+                                            child: Text(
+                                              'Sin favoritos',
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(0.5),
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          )
+                                        : ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                                            itemCount: _allSeries.values
+                                                .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
+                                                .length,
+                                            itemBuilder: (context, index) {
+                                              final favorites = _allSeries.values
+                                                  .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
+                                                  .toList();
+                                              if (index < favorites.length) {
+                                                return _buildHorizontalSeriesCard(favorites[index]);
+                                              }
+                                              return const SizedBox.shrink();
+                                            },
+                                          ),
+                                  ),
+                                ),
+
+                                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                              ],
+                            )
+                          : GridView.builder(
+                              padding: const EdgeInsets.all(16),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4,
+                                childAspectRatio: 0.65,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
                               ),
-                            ],
-                          ),
-                        )
-                      : GridView.builder(
-                          padding: const EdgeInsets.all(16),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 5,
-                            childAspectRatio: 0.65,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                          ),
-                          itemCount: _filteredSeries.length,
-                          itemBuilder: (context, index) {
-                            final series = _filteredSeries[index];
-                            return _buildSeriesCard(series);
-                          },
-                        ),
+                              itemCount: _filteredSeries.length,
+                              itemBuilder: (context, index) {
+                                return _buildSeriesCard(_filteredSeries[index]);
+                              },
+                            )
                 ),
               ],
             ),
@@ -522,17 +650,396 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
     );
   }
 
+  List<Series> _getTrendingSeries() {
+    // Sort by rating from ALL series (not filtered) - trending = highest rated
+    final sorted = List<Series>.from(_filteredSeries.isEmpty ? _allSeries.values.toList() : _filteredSeries);
+    sorted.sort((a, b) => (b.rating ?? 0).compareTo(a.rating ?? 0));
+    return sorted.take(10).toList();
+  }
+
+  Widget _buildTrendingSeriesCard(Series series, int position) {
+    return Container(
+      width: 200,
+      margin: const EdgeInsets.only(right: 20),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SeriesDetailScreen(series: series),
+              ),
+            );
+            _loadSeries();
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: const Color(0xFF1A2B3C),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.6),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Background image
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: const Color(0xFF2D4A5E),
+                  ),
+                  child: series.poster != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.network(
+                            series.poster!,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Icon(
+                                  Icons.movie,
+                                  size: 60,
+                                  color: Colors.white.withOpacity(0.2),
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : Center(
+                          child: Icon(
+                            Icons.movie,
+                            size: 60,
+                            color: Colors.white.withOpacity(0.2),
+                          ),
+                        ),
+                ),
+
+                // Dark gradient overlay
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Top 10 badge
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE50914),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.6),
+                          blurRadius: 12,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      'TOP $position',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Rating badge
+                if (series.rating != null && series.rating! > 0)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getRatingColor(series.rating ?? 0),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.6),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            color: Colors.white,
+                            size: 13,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            (series.rating ?? 0).toStringAsFixed(1),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Title at bottom
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(14),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.8),
+                        ],
+                      ),
+                    ),
+                    child: Text(
+                      series.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFFE50914), size: 28),
+          const SizedBox(width: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHorizontalSeriesCard(Series series) {
+    return Container(
+      width: 140,
+      margin: const EdgeInsets.only(right: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SeriesDetailScreen(series: series),
+              ),
+            );
+            _loadSeries();
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFF1A2B3C),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Poster image
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12),
+                          ),
+                          color: const Color(0xFF2D4A5E),
+                        ),
+                        child: series.poster != null
+                            ? ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(12),
+                                ),
+                                child: Image.network(
+                                  series.poster!,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Center(
+                                      child: Icon(
+                                        Icons.movie,
+                                        size: 40,
+                                        color: Colors.white.withOpacity(0.3),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                            : Center(
+                                child: Icon(
+                                  Icons.movie,
+                                  size: 40,
+                                  color: Colors.white.withOpacity(0.3),
+                                ),
+                              ),
+                      ),
+                      // Gradient overlay
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12),
+                          ),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.3),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Rating badge
+                      if (series.rating != null && series.rating! > 0)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getRatingColor(series.rating ?? 0),
+                              borderRadius: BorderRadius.circular(6),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.5),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  color: Colors.white,
+                                  size: 11,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  (series.rating ?? 0.0).toStringAsFixed(1),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Title
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
+                  child: Text(
+                    series.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSeriesCard(Series series) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          Navigator.push(
+        onTap: () async {
+          await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => SeriesDetailScreen(series: series),
             ),
           );
+          // Reload series when returning from detail screen to show updated progress
+          _loadSeries();
         },
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -656,5 +1163,157 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
     } else {
       return const Color(0xFFF44336); // Red for poor
     }
+  }
+
+  Widget _buildXtreamGrid(ContentProvider contentProvider) {
+    if (contentProvider.isLoadingSeries) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    final items = contentProvider.filteredSeriesItems;
+
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.tv_outlined,
+              size: 64,
+              color: Colors.white.withOpacity(0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Sin series',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        childAspectRatio: 0.65,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        return _buildXtreamSeriesCard(items[index], contentProvider);
+      },
+    );
+  }
+
+  Widget _buildXtreamSeriesCard(SeriesItem series, ContentProvider contentProvider) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () async {
+          // For now, just show a message that series playback is not yet implemented
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Series detail view coming soon'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: const Color(0xFF1A2B3C),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Poster image
+              Expanded(
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(8),
+                        ),
+                        color: const Color(0xFF2D4A5E),
+                      ),
+                      child: series.posterUrl != null
+                          ? ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(8),
+                              ),
+                              child: Image.network(
+                                series.posterUrl!,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Center(
+                                    child: Icon(
+                                      Icons.tv,
+                                      size: 48,
+                                      color: Colors.white.withOpacity(0.3),
+                                    ),
+                                  );
+                                },
+                              ),
+                            )
+                          : Center(
+                              child: Icon(
+                                Icons.tv,
+                                size: 48,
+                                color: Colors.white.withOpacity(0.3),
+                              ),
+                            ),
+                    ),
+                    // Favorite button
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton(
+                        icon: Icon(
+                          series.isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: series.isFavorite ? Colors.red : Colors.white,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          contentProvider.toggleSeriesFavorite(series.id);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Title
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  series.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

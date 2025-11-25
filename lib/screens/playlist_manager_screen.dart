@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/playlist.dart';
+import '../models/channel.dart';
 import '../services/database_service.dart';
 import '../services/m3u_parser.dart';
 import '../services/epg_service.dart';
+import '../services/xtream_service.dart';
+import '../services/preferences_service.dart';
 
 class PlaylistManagerScreen extends StatefulWidget {
   const PlaylistManagerScreen({Key? key}) : super(key: key);
@@ -14,11 +17,18 @@ class PlaylistManagerScreen extends StatefulWidget {
 class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
   List<Playlist> _playlists = [];
   bool _isLoading = true;
+  int? _activePlaylistId;
 
   @override
   void initState() {
     super.initState();
     _loadPlaylists();
+    _loadActivePlaylistId();
+  }
+
+  Future<void> _loadActivePlaylistId() async {
+    final id = await PreferencesService.getActivePlaylistId();
+    setState(() => _activePlaylistId = id);
   }
 
   Future<void> _loadPlaylists() async {
@@ -53,6 +63,14 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
   }
 
   Future<void> _processPlaylist(Playlist playlist, {bool isEdit = false}) async {
+    print('=== Processing Playlist ===');
+    print('Name: ${playlist.name}');
+    print('URL: ${playlist.url}');
+    print('Source Type: ${playlist.sourceType}');
+    print('Is Xtream: ${playlist.isXtreamCodes}');
+    print('Username: ${playlist.username}');
+    print('Password: ${playlist.password != null ? "***" : "null"}');
+
     // Mostrar diálogo de progreso
     showDialog(
       context: context,
@@ -64,32 +82,144 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
     );
 
     try {
-      // Parsear playlist
-      final channels = await M3UParser.parseFromUrl(playlist.getFullUrl());
+      List<Channel> channels = [];
 
-      // Guardar playlist y canales
+      if (playlist.isXtreamCodes) {
+        print('Processing as Xtream Codes...');
+        // Handle Xtream Codes source
+        final service = XtreamService(
+          baseUrl: playlist.url,
+          username: playlist.username!,
+          password: playlist.password!,
+        );
+
+        print('Fetching ALL content from Xtream (live, movies, series)...');
+
+        // Fetch LIVE CHANNELS
+        print('1/3 - Fetching live channels...');
+        final liveResult = await service.getLiveChannels();
+        print('Live channels result: ${liveResult['success']}');
+
+        if (liveResult['success'] == true) {
+          channels.addAll(liveResult['channels'] as List<Channel>);
+          print('Got ${channels.length} live channels');
+        } else {
+          print('Failed to get live channels: ${liveResult['message']}');
+        }
+
+        // Fetch MOVIES (VOD)
+        print('2/3 - Fetching movies...');
+        final moviesResult = await service.getMovies();
+        print('Movies result: ${moviesResult['success']}');
+
+        if (moviesResult['success'] == true) {
+          final movies = moviesResult['movies'] as List;
+          print('Converting ${movies.length} movies to channels...');
+
+          for (var movie in movies) {
+            final channel = Channel()
+              ..name = movie.name
+              ..url = movie.streamUrl
+              ..logo = movie.posterUrl
+              ..group = movie.categoryName
+              ..description = movie.plot
+              ..contentType = ContentType.movie;
+            channels.add(channel);
+          }
+          print('Total after movies: ${channels.length}');
+        } else {
+          print('Failed to get movies: ${moviesResult['message']}');
+        }
+
+        // Fetch SERIES
+        print('3/3 - Fetching series...');
+        final seriesResult = await service.getSeries();
+        print('Series result: ${seriesResult['success']}');
+
+        if (seriesResult['success'] == true) {
+          final seriesList = seriesResult['series'] as List;
+          print('Converting ${seriesList.length} series to channels...');
+
+          // Para Xtream Codes, guardamos solo UN canal por serie (la metadata)
+          // Los episodios se cargarán bajo demanda cuando el usuario entre a series_grid_screen
+          for (var series in seriesList) {
+            // Usamos una URL especial para identificar que es una serie de Xtream
+            // El formato es: xtream://series/SERIES_ID
+            final channel = Channel()
+              ..name = series.name
+              ..url = 'xtream://series/${series.id}'
+              ..logo = series.posterUrl
+              ..group = series.categoryName
+              ..description = series.plot
+              ..tvgId = int.tryParse(series.id) // Guardamos el series_id aquí
+              ..contentType = ContentType.series;
+            channels.add(channel);
+          }
+          print('Total after series: ${channels.length}');
+        } else {
+          print('Failed to get series: ${seriesResult['message']}');
+        }
+
+        print('Xtream Codes processing complete: ${channels.length} total items');
+      } else {
+        print('Processing as M3U...');
+        // Handle M3U source
+        channels = await M3UParser.parseFromUrl(playlist.getFullUrl());
+        print('Got ${channels.length} channels from M3U');
+      }
+
+      // Guardar playlist primero para obtener su ID
       playlist.channelCount = channels.length;
       playlist.lastUpdated = DateTime.now();
       await DatabaseService.addPlaylist(playlist);
 
+      // Si es nueva playlist, establecerla como activa
       if (!isEdit) {
+        // Asociar canales con la playlist
+        for (var channel in channels) {
+          channel.playlistId = playlist.id;
+        }
+        await DatabaseService.addChannels(channels);
+
+        // Set this playlist as active
+        await PreferencesService.setActivePlaylistId(playlist.id);
+      } else {
+        // Si es edición, actualizar los canales existentes
+        for (var channel in channels) {
+          channel.playlistId = playlist.id;
+        }
         await DatabaseService.addChannels(channels);
       }
 
-      // Intentar cargar EPG automáticamente
+      // Intentar cargar EPG automáticamente (solo para M3U)
       String epgMessage = '';
-      final epgResult = await EpgService.loadEpgFromPlaylistUrl(playlist.getFullUrl());
-      if (epgResult['success'] == true) {
-        epgMessage = '\nEPG: ${epgResult['programs']} programas cargados';
+      if (!playlist.isXtreamCodes) {
+        final epgResult = await EpgService.loadEpgFromPlaylistUrl(playlist.getFullUrl());
+        if (epgResult['success'] == true) {
+          epgMessage = '\nEPG: ${epgResult['programs']} programas cargados';
+        }
       }
 
       if (mounted) {
         Navigator.pop(context); // Cerrar diálogo de carga
-        _showSuccessSnackBar(
-          isEdit
+
+        // Count by content type
+        final liveCount = channels.where((c) => c.contentType == ContentType.live).length;
+        final movieCount = channels.where((c) => c.contentType == ContentType.movie).length;
+        final seriesCount = channels.where((c) => c.contentType == ContentType.series).length;
+
+        String message;
+        if (playlist.isXtreamCodes) {
+          message = isEdit
+            ? 'Playlist Xtream actualizada:\n$liveCount canales en vivo\n$movieCount películas\n$seriesCount series'
+            : 'Playlist Xtream agregada:\n$liveCount canales en vivo\n$movieCount películas\n$seriesCount series';
+        } else {
+          message = isEdit
             ? 'Playlist actualizada: ${channels.length} canales$epgMessage'
-            : 'Playlist agregada: ${channels.length} canales$epgMessage',
-        );
+            : 'Playlist agregada: ${channels.length} canales$epgMessage';
+        }
+
+        _showSuccessSnackBar(message);
       }
 
       _loadPlaylists();
@@ -601,6 +731,13 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
                               'Autenticado',
                               color: Colors.green,
                             ),
+                          const SizedBox(width: 12),
+                          if (playlist.id == _activePlaylistId)
+                            _buildInfoChip(
+                              Icons.check_circle,
+                              'Activa',
+                              color: Colors.blue,
+                            ),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -765,10 +902,13 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _urlController;
+  late TextEditingController _hostController;
   late TextEditingController _usernameController;
   late TextEditingController _passwordController;
-  bool _requiresAuth = false;
+  late PlaylistSourceType _sourceType;
+  bool _isVerifying = false;
   bool _showPassword = false;
+  String? _verificationMessage;
 
   bool get isEditing => widget.playlist != null;
 
@@ -779,16 +919,54 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
     _urlController = TextEditingController(text: widget.playlist?.url ?? '');
     _usernameController = TextEditingController(text: widget.playlist?.username ?? '');
     _passwordController = TextEditingController(text: widget.playlist?.password ?? '');
-    _requiresAuth = widget.playlist?.username != null;
+    _hostController = TextEditingController(text: widget.playlist?.url ?? '');
+    _sourceType = widget.playlist?.sourceType ?? PlaylistSourceType.m3u;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _urlController.dispose();
+    _hostController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _verifyXtreamCredentials() async {
+    if (_hostController.text.isEmpty || _usernameController.text.isEmpty || _passwordController.text.isEmpty) {
+      setState(() => _verificationMessage = 'Completa todos los campos');
+      return;
+    }
+
+    setState(() {
+      _isVerifying = true;
+      _verificationMessage = null;
+    });
+
+    try {
+      final service = XtreamService(
+        baseUrl: _hostController.text.replaceAll(RegExp(r'/*$'), ''),
+        username: _usernameController.text,
+        password: _passwordController.text,
+      );
+
+      final isValid = await service.verifyCredentials();
+
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+          _verificationMessage = isValid ? 'Credenciales verificadas' : 'Credenciales inválidas';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+          _verificationMessage = 'Error: $e';
+        });
+      }
+    }
   }
 
   @override
@@ -862,49 +1040,111 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
 
               const SizedBox(height: 16),
 
-              // URL field
-              _buildTextField(
-                controller: _urlController,
-                label: 'URL de la playlist',
-                hint: 'http://servidor.com/get.php?username=X&password=Y&type=m3u_plus',
-                icon: Icons.link,
-                maxLines: 2,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingresa la URL';
-                  }
-                  if (!value.startsWith('http://') && !value.startsWith('https://')) {
-                    return 'La URL debe comenzar con http:// o https://';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              // Auth toggle
+              // Source Type Selector
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
                 ),
-                child: SwitchListTile(
-                  title: const Text(
-                    'Autenticación adicional',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  subtitle: Text(
-                    'Si la URL no incluye credenciales',
-                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
-                  ),
-                  value: _requiresAuth,
-                  onChanged: (value) => setState(() => _requiresAuth = value),
-                  activeColor: Colors.blue,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _sourceType = PlaylistSourceType.m3u),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _sourceType == PlaylistSourceType.m3u
+                                ? Colors.blue.withOpacity(0.3)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.horizontal(
+                              left: Radius.circular(_sourceType == PlaylistSourceType.m3u ? 12 : 8),
+                            ),
+                          ),
+                          child: const Text(
+                            'M3U',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _sourceType = PlaylistSourceType.xtreamCodes),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _sourceType == PlaylistSourceType.xtreamCodes
+                                ? Colors.blue.withOpacity(0.3)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.horizontal(
+                              right: Radius.circular(_sourceType == PlaylistSourceType.xtreamCodes ? 12 : 8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Xtream Codes',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
-              // Auth fields
-              if (_requiresAuth) ...[
+              const SizedBox(height: 16),
+
+              // M3U Form
+              if (_sourceType == PlaylistSourceType.m3u) ...[
+                _buildTextField(
+                  controller: _urlController,
+                  label: 'URL de la playlist',
+                  hint: 'https://ejemplo.com/playlist.m3u',
+                  icon: Icons.link,
+                  maxLines: 2,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Ingresa la URL';
+                    }
+                    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+                      return 'La URL debe comenzar con http:// o https://';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+
+              // Xtream Codes Form
+              if (_sourceType == PlaylistSourceType.xtreamCodes) ...[
+                _buildTextField(
+                  controller: _hostController,
+                  label: 'Host del servidor',
+                  hint: 'http://servidor.com:8080',
+                  icon: Icons.storage,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Ingresa el host';
+                    }
+                    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+                      return 'Debe comenzar con http:// o https://';
+                    }
+                    return null;
+                  },
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -915,7 +1155,7 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                         hint: 'username',
                         icon: Icons.person_outline,
                         validator: (value) {
-                          if (_requiresAuth && (value == null || value.isEmpty)) {
+                          if (value == null || value.isEmpty) {
                             return 'Requerido';
                           }
                           return null;
@@ -938,7 +1178,7 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                           onPressed: () => setState(() => _showPassword = !_showPassword),
                         ),
                         validator: (value) {
-                          if (_requiresAuth && (value == null || value.isEmpty)) {
+                          if (value == null || value.isEmpty) {
                             return 'Requerido';
                           }
                           return null;
@@ -947,6 +1187,57 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                // Verification button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isVerifying ? null : _verifyXtreamCredentials,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                      disabledBackgroundColor: Colors.grey.withOpacity(0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: _isVerifying
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Verificar Credenciales',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                ),
+                if (_verificationMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _verificationMessage!.contains('verificadas')
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.red.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _verificationMessage!.contains('verificadas')
+                            ? Colors.green.withOpacity(0.5)
+                            : Colors.red.withOpacity(0.5),
+                      ),
+                    ),
+                    child: Text(
+                      _verificationMessage!,
+                      style: TextStyle(
+                        color: _verificationMessage!.contains('verificadas') ? Colors.green : Colors.red,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ],
 
               const SizedBox(height: 24),
@@ -1031,9 +1322,18 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
     if (_formKey.currentState!.validate()) {
       final playlist = widget.playlist ?? Playlist();
       playlist.name = _nameController.text.trim();
-      playlist.url = _urlController.text.trim();
-      playlist.username = _requiresAuth ? _usernameController.text.trim() : null;
-      playlist.password = _requiresAuth ? _passwordController.text.trim() : null;
+      playlist.sourceType = _sourceType;
+
+      if (_sourceType == PlaylistSourceType.m3u) {
+        playlist.url = _urlController.text.trim();
+        playlist.username = null;
+        playlist.password = null;
+      } else {
+        playlist.url = _hostController.text.replaceAll(RegExp(r'/*$'), '');
+        playlist.username = _usernameController.text.trim();
+        playlist.password = _passwordController.text.trim();
+      }
+
       playlist.lastUpdated = DateTime.now();
 
       if (widget.playlist == null) {

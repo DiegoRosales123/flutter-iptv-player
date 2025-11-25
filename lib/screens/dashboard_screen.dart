@@ -9,9 +9,11 @@ import 'profiles_screen.dart';
 import 'epg_screen.dart';
 import 'video_player_screen.dart';
 import '../models/channel.dart';
+import '../models/playlist.dart';
 import '../models/profile.dart';
 import '../services/database_service.dart';
 import '../services/tmdb_service.dart';
+import '../services/preferences_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -22,6 +24,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   Profile? _activeProfile;
+  Playlist? _activePlaylist;
+  List<Playlist> _availablePlaylists = [];
   List<Channel> _recentChannels = [];
   List<Channel> _favoriteChannels = [];
   int _totalChannels = 0;
@@ -61,6 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadActiveProfile();
+    _loadPlaylists();
     _loadDashboardData();
   }
 
@@ -69,9 +74,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _activeProfile = profile);
   }
 
+  Future<void> _loadPlaylists() async {
+    final allPlaylists = await DatabaseService.getAllPlaylists();
+    final activePlaylistId = await PreferencesService.getActivePlaylistId();
+
+    Playlist? activePlaylist;
+    if (activePlaylistId != null) {
+      activePlaylist = await DatabaseService.getPlaylistById(activePlaylistId);
+    }
+
+    setState(() {
+      _availablePlaylists = allPlaylists;
+      _activePlaylist = activePlaylist ?? (allPlaylists.isNotEmpty ? allPlaylists.first : null);
+    });
+  }
+
   Future<void> _loadDashboardData() async {
-    final allChannels = await DatabaseService.getAllChannels();
+    List<Channel> allChannels;
+
+    // Filter by active playlist if one is selected
+    if (_activePlaylist != null) {
+      allChannels = await DatabaseService.getChannelsByPlaylistId(_activePlaylist!.id);
+    } else {
+      allChannels = await DatabaseService.getAllChannels();
+    }
+
     final recent = await DatabaseService.getRecentlyPlayedChannels(limit: 6);
+    // Filter recent by active playlist
+    if (_activePlaylist != null) {
+      recent.retainWhere((c) => c.playlistId == _activePlaylist!.id);
+    }
+
     final favorites = allChannels.where((c) => c.isFavorite).take(6).toList();
 
     // Assign ratings immediately for all movies/series
@@ -171,6 +204,109 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _setActivePlaylist(Playlist playlist) async {
+    await PreferencesService.setActivePlaylistId(playlist.id);
+    setState(() => _activePlaylist = playlist);
+    _loadDashboardData();
+  }
+
+  Widget _buildPlaylistSelector() {
+    if (_availablePlaylists.isEmpty) {
+      return TextButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PlaylistManagerScreen(),
+            ),
+          ).then((_) {
+            _loadPlaylists();
+            _loadDashboardData();
+          });
+        },
+        icon: const Icon(Icons.add_to_queue, color: Colors.white),
+        label: const Text('Agregar Playlist', style: TextStyle(color: Colors.white)),
+      );
+    }
+
+    return PopupMenuButton<Playlist>(
+      initialValue: _activePlaylist,
+      onSelected: _setActivePlaylist,
+      itemBuilder: (context) {
+        return [
+          ..._availablePlaylists.map((playlist) {
+            final isActive = playlist.id == _activePlaylist?.id;
+            return PopupMenuItem(
+              value: playlist,
+              child: Row(
+                children: [
+                  if (isActive)
+                    const Icon(Icons.check, color: Colors.green, size: 16)
+                  else
+                    const SizedBox(width: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(playlist.name, style: const TextStyle(color: Colors.white)),
+                        Text(
+                          '${playlist.channelCount} canales',
+                          style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            child: const Text('Gestionar Playlists', style: TextStyle(color: Colors.white)),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PlaylistManagerScreen(),
+                ),
+              ).then((_) {
+                _loadPlaylists();
+                _loadDashboardData();
+              });
+            },
+          ),
+        ];
+      },
+      color: const Color(0xFF1A2F44),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.playlist_play, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                _activePlaylist?.name ?? 'Sin Playlist',
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfileAvatar({double size = 32}) {
     if (_activeProfile == null) {
       return Icon(Icons.person_outline, color: Colors.white, size: size * 0.7);
@@ -253,6 +389,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     letterSpacing: 1.5,
                   ),
                 ),
+                const SizedBox(width: 40),
+                // Playlist selector
+                _buildPlaylistSelector(),
                 const Spacer(),
                 // Current time with refined styling
                 Column(

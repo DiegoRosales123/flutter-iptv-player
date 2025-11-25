@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:provider/provider.dart';
 import 'services/database_service.dart';
 import 'services/config_service.dart';
 import 'services/m3u_parser.dart';
+import 'services/xtream_service.dart';
+import 'services/preferences_service.dart';
+import 'providers/content_provider.dart';
+import 'models/playlist.dart';
 import 'screens/dashboard_screen.dart';
 
 void main() async {
@@ -86,42 +91,103 @@ class ErrorApp extends StatelessWidget {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late Future<XtreamService?> _xtreamServiceFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _xtreamServiceFuture = _initializeXtreamService();
+  }
+
+  Future<XtreamService?> _initializeXtreamService() async {
+    // Get active playlist
+    final activePlaylistId = await PreferencesService.getActivePlaylistId();
+    if (activePlaylistId != null) {
+      final playlist = await DatabaseService.getPlaylistById(activePlaylistId);
+
+      // Check if it's an Xtream Codes playlist
+      if (playlist != null &&
+          playlist.sourceType == PlaylistSourceType.xtreamCodes &&
+          playlist.username != null &&
+          playlist.password != null) {
+
+        return XtreamService(
+          baseUrl: playlist.url,
+          username: playlist.username!,
+          password: playlist.password!,
+        );
+      }
+    }
+    return null;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'IPTV Player Pro',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
-        cardTheme: CardTheme(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return FutureBuilder<XtreamService?>(
+      future: _xtreamServiceFuture,
+      builder: (context, snapshot) {
+        // Show loading while initializing
+        if (!snapshot.hasData && snapshot.connectionState == ConnectionState.waiting) {
+          return const MaterialApp(
+            home: Scaffold(
+              backgroundColor: Colors.black,
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          );
+        }
+
+        final xtreamService = snapshot.data;
+
+        return MultiProvider(
+          providers: [
+            ChangeNotifierProvider(
+              create: (_) => ContentProvider(xtreamService),
+            ),
+          ],
+          child: MaterialApp(
+        title: 'IPTV Player Pro',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue,
+            brightness: Brightness.light,
+          ),
+          cardTheme: CardTheme(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.dark,
-        ),
-        cardTheme: CardTheme(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        darkTheme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue,
+            brightness: Brightness.dark,
+          ),
+          cardTheme: CardTheme(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
-      ),
-      themeMode: ThemeMode.dark,
-      home: const SplashScreen(),
+        themeMode: ThemeMode.dark,
+        home: const SplashScreen(),
+          ),
+        );
+      },
     );
   }
 }

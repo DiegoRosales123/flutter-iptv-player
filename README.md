@@ -22,11 +22,21 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 - **TV en Vivo**: Visualiza canales en tiempo real con interfaz de 3 columnas (categorías, canales, reproductor)
 - **Películas VOD**: Explora y reproduce películas organizadas por categorías
 - **Series**: Navega por temporadas y episodios con información detallada
-- **Controles de video**: Barra de progreso, +10/-10 segundos, control de volumen, pantalla completa
+- **Controles de video avanzados**:
+  - Barra de progreso con búsqueda
+  - Salto rápido: +10/-10 segundos
+  - Control de volumen con deslizador
+  - Pistas de audio múltiples
+  - Subtítulos configurables
+  - **Pantalla completa real** (oculta la barra de tareas de Windows)
+  - Atajos de teclado (Espacio, Flechas, F/F11, Escape)
 
 ### 🎯 Gestión de Contenido
 - **Soporte M3U/M3U8**: Importa playlists desde URL o archivo local
 - **Autenticación Xtream Codes**: Compatible con servicios IPTV populares
+  - Soporte completo para API Xtream Codes
+  - Carga lazy de episodios de series (ultra rápido)
+  - Categorías automáticas para Live TV, Movies y Series
 - **Múltiples playlists**: Gestiona varias listas simultáneamente
 - **Sistema de favoritos**: Marca tus canales y contenidos preferidos
 - **Búsqueda avanzada**: Filtra por nombre, categoría o grupo
@@ -202,11 +212,14 @@ URL: http://server.com:8080/get.php?username=usuario&password=clave&type=m3u_plu
 **Películas/Series:**
 - Abre en reproductor de pantalla completa
 - Controles disponibles:
-  - Play/Pausa
+  - Play/Pausa (Espacio)
   - Barra de progreso (arrastra para buscar)
-  - +10/-10 segundos
-  - Control de volumen
-  - Pantalla completa
+  - Retroceder/Adelantar 10 segundos (Flechas ← →)
+  - Control de volumen (Flechas ↑ ↓)
+  - Selector de pistas de audio
+  - Selector de subtítulos
+  - **Pantalla completa real** (F o F11) - Oculta la barra de tareas de Windows
+  - Volver/Salir de pantalla completa (Escape)
 
 ## 📁 Estructura del Proyecto
 

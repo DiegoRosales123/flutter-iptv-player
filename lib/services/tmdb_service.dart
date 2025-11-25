@@ -68,7 +68,37 @@ class TmdbService {
     return 5.0 + (random.nextDouble() * 4.5);
   }
 
-  /// Search for a movie and get its rating
+  /// Search for a movie and get its rating from real APIs only (no fallback)
+  /// Returns null if rating cannot be fetched from actual APIs
+  static Future<double?> getMovieRatingFromApi(String movieName) async {
+    // Check cache first
+    if (_ratingCache.containsKey('movie_$movieName')) {
+      return _ratingCache['movie_$movieName'];
+    }
+
+    double? rating;
+
+    // Try OMDb API first (no key required, more reliable)
+    rating = await _getOMDbRating(movieName, isTV: false);
+    if (rating != null) {
+      _ratingCache['movie_$movieName'] = rating;
+      return rating;
+    }
+
+    // Try TMDB API if OMDb fails
+    if (ConfigService.isTmdbConfigured()) {
+      rating = await _getTMDBMovieRating(movieName);
+      if (rating != null) {
+        _ratingCache['movie_$movieName'] = rating;
+        return rating;
+      }
+    }
+
+    // No fallback - return null if no real API data
+    return null;
+  }
+
+  /// Search for a movie and get its rating (with fallback to pseudo-random)
   static Future<double?> getMovieRating(String movieName) async {
     // Check cache first
     if (_ratingCache.containsKey('movie_$movieName')) {
@@ -93,7 +123,7 @@ class TmdbService {
       }
     }
 
-    // Fallback: Generate pseudo-random rating
+    // Fallback: Generate pseudo-random rating (only for display, not saved)
     rating = _generatePseudoRating(movieName);
     _ratingCache['movie_$movieName'] = rating;
     return rating;
@@ -133,7 +163,37 @@ class TmdbService {
     return null;
   }
 
-  /// Search for a TV series and get its rating
+  /// Search for a TV series and get its rating from real APIs only (no fallback)
+  /// Returns null if rating cannot be fetched from actual APIs
+  static Future<double?> getSeriesRatingFromApi(String seriesName) async {
+    // Check cache first
+    if (_ratingCache.containsKey('series_$seriesName')) {
+      return _ratingCache['series_$seriesName'];
+    }
+
+    double? rating;
+
+    // Try OMDb API first (no key required, more reliable)
+    rating = await _getOMDbRating(seriesName, isTV: true);
+    if (rating != null) {
+      _ratingCache['series_$seriesName'] = rating;
+      return rating;
+    }
+
+    // Try TMDB API if OMDb fails
+    if (ConfigService.isTmdbConfigured()) {
+      rating = await _getTMDBSeriesRating(seriesName);
+      if (rating != null) {
+        _ratingCache['series_$seriesName'] = rating;
+        return rating;
+      }
+    }
+
+    // No fallback - return null if no real API data
+    return null;
+  }
+
+  /// Search for a TV series and get its rating (with fallback to pseudo-random)
   static Future<double?> getSeriesRating(String seriesName) async {
     // Check cache first
     if (_ratingCache.containsKey('series_$seriesName')) {
@@ -158,7 +218,7 @@ class TmdbService {
       }
     }
 
-    // Fallback: Generate pseudo-random rating
+    // Fallback: Generate pseudo-random rating (only for display, not saved)
     rating = _generatePseudoRating(seriesName);
     _ratingCache['series_$seriesName'] = rating;
     return rating;
@@ -255,6 +315,64 @@ class TmdbService {
     name = name.replaceAll(RegExp(r'\s+'), ' ');
 
     return name.trim();
+  }
+
+  /// Get movie overview/description from TMDB
+  static Future<String?> getMovieDescription(String movieName) async {
+    try {
+      final tmdbBaseUrl = ConfigService.getTmdbBaseUrl();
+      final tmdbApiKey = ConfigService.getTmdbApiKey();
+      final searchUrl = Uri.parse(
+        '$tmdbBaseUrl/search/movie?api_key=$tmdbApiKey&query=${Uri.encodeComponent(movieName)}&language=es-MX',
+      );
+
+      final response = await http.get(searchUrl).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => http.Response('Timeout', 408),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final results = data['results'] as List?;
+
+        if (results != null && results.isNotEmpty) {
+          final overview = results[0]['overview'] as String?;
+          return overview != null && overview.isNotEmpty ? overview : null;
+        }
+      }
+    } catch (e) {
+      print('Error fetching movie description from TMDB for $movieName: $e');
+    }
+    return null;
+  }
+
+  /// Get TV series overview/description from TMDB
+  static Future<String?> getSeriesDescription(String seriesName) async {
+    try {
+      final tmdbBaseUrl = ConfigService.getTmdbBaseUrl();
+      final tmdbApiKey = ConfigService.getTmdbApiKey();
+      final searchUrl = Uri.parse(
+        '$tmdbBaseUrl/search/tv?api_key=$tmdbApiKey&query=${Uri.encodeComponent(seriesName)}&language=es-MX',
+      );
+
+      final response = await http.get(searchUrl).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => http.Response('Timeout', 408),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final results = data['results'] as List?;
+
+        if (results != null && results.isNotEmpty) {
+          final overview = results[0]['overview'] as String?;
+          return overview != null && overview.isNotEmpty ? overview : null;
+        }
+      }
+    } catch (e) {
+      print('Error fetching series description from TMDB for $seriesName: $e');
+    }
+    return null;
   }
 
   /// Clear the rating cache

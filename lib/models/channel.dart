@@ -24,6 +24,12 @@ class Channel {
   int playCount = 0;
   DateTime? lastPlayed;
   double rating = 0.0; // TMDB rating (0-10), 0 means not set
+  String? description; // Movie/Series description or plot
+  int watchedMilliseconds = 0; // Progress in milliseconds
+  int totalMilliseconds = 0; // Total duration in milliseconds
+
+  // Playlist association
+  int? playlistId; // ID of the playlist this channel belongs to
 
   // Content type: 'live', 'movie', 'series'
   @enumerated
@@ -31,35 +37,95 @@ class Channel {
 
   Channel();
 
-  // Determine content type from URL or group
+  // Professional content type detection based on URL pattern priority
+  // Strategy: URL API patterns > name patterns > group (group is unreliable in M3U)
+  // Default to LIVE since most M3U content is broadcast television
   void detectContentType() {
     final lowerUrl = url.toLowerCase();
-    final lowerGroup = (group ?? '').toLowerCase();
     final lowerName = name.toLowerCase();
+    final lowerGroup = (group ?? '').toLowerCase();
 
-    // Check URL patterns (Xtream Codes API format)
-    if (lowerUrl.contains('/movie/') ||
-        lowerUrl.contains('&type=movie') ||
-        lowerUrl.contains('/vod/') ||
-        lowerGroup.contains('vod') ||
-        lowerGroup.contains('movie') ||
-        lowerGroup.contains('películas') ||
-        lowerGroup.contains('peliculas') ||
-        lowerGroup.contains('pelicula') ||
-        lowerGroup.contains('film') ||
+    // STAGE 1: Definitive URL patterns (highest confidence)
+    // Xtream Codes API endpoints are very reliable
+    if (lowerUrl.contains('/movie/') || lowerUrl.contains('&type=movie')) {
+      contentType = ContentType.movie;
+      return;
+    }
+    if (lowerUrl.contains('/series/') || lowerUrl.contains('&type=series')) {
+      contentType = ContentType.series;
+      return;
+    }
+    if (lowerUrl.contains('/vod/')) {
+      contentType = ContentType.movie; // VOD is primarily movies
+      return;
+    }
+
+    // STAGE 2: Definitive LIVE TV name patterns
+    // These patterns are almost 100% reliable for identifying live channels
+    // "LAT |", "HBO -", "1 |", "101.", etc. are channel naming conventions
+    if (RegExp(r'^[a-z]{1,3}\s*[\|\-]', caseSensitive: false).hasMatch(lowerName)) {
+      contentType = ContentType.live;
+      return;
+    }
+
+    // Numbered channels (1, 101, 1.1, etc.) followed by separator
+    if (RegExp(r'^\d+(\.\d+)?\s*[\|\-\.]', caseSensitive: false).hasMatch(lowerName)) {
+      contentType = ContentType.live;
+      return;
+    }
+
+    // MPEG-TS format is used for live TV streaming
+    if (lowerUrl.endsWith('.ts') || lowerUrl.contains('.ts?') || lowerUrl.contains('.ts/')) {
+      contentType = ContentType.live;
+      return;
+    }
+
+    // Explicit live path
+    if (lowerUrl.contains('/live/')) {
+      contentType = ContentType.live;
+      return;
+    }
+
+    // STAGE 3: Name patterns for series (season/episode notation)
+    if (RegExp(r's\d{1,2}e\d{1,2}|temporada\s*\d+|season\s*\d+', caseSensitive: false).hasMatch(lowerName)) {
+      contentType = ContentType.series;
+      return;
+    }
+
+    // STAGE 4: Check if name indicates live TV before trusting group
+    final liveNamePatterns = [
+      'live', 'en vivo', 'tvonline', 'tv online',
+      'canal', 'sport', 'sports', 'news', 'documentales',
+      'hbo', 'espn', 'discovery', 'nat geo', 'animal planet',
+      'history', 'syfy', 'cinemax', 'mtv', 'vevo'
+    ];
+
+    bool nameLooksLive = liveNamePatterns.any((p) => lowerName.contains(p));
+
+    if (nameLooksLive) {
+      contentType = ContentType.live;
+      return;
+    }
+
+    // STAGE 5: Use group only if name doesn't contradict
+    // (at this point we know the name doesn't look like a live channel)
+    if (lowerGroup.contains('movie') || lowerGroup.contains('película') ||
+        lowerGroup.contains('peliculas') || lowerGroup.contains('pelicula') ||
+        lowerGroup.contains('film') || lowerGroup.contains('cine') ||
         lowerGroup.contains('cinema')) {
       contentType = ContentType.movie;
-    } else if (lowerUrl.contains('/series/') ||
-               lowerUrl.contains('&type=series') ||
-               lowerGroup.contains('series') ||
-               lowerGroup.contains('serie') ||
-               lowerGroup.contains('tv shows') ||
-               lowerGroup.contains('temporada')) {
-      contentType = ContentType.series;
-    } else {
-      // Everything else is live TV
-      contentType = ContentType.live;
+      return;
     }
+
+    if (lowerGroup.contains('series') || lowerGroup.contains('serie') ||
+        lowerGroup.contains('tv show') || lowerGroup.contains('temporada')) {
+      contentType = ContentType.series;
+      return;
+    }
+
+    // STAGE 6: Default to LIVE TV
+    // This is the safest default since most M3U content is broadcast television
+    contentType = ContentType.live;
   }
 
   factory Channel.fromM3U(String line, String url) {
@@ -108,5 +174,8 @@ class Channel {
         'playCount': playCount,
         'lastPlayed': lastPlayed?.toIso8601String(),
         'rating': rating,
+        'description': description,
+        'watchedMilliseconds': watchedMilliseconds,
+        'totalMilliseconds': totalMilliseconds,
       };
 }

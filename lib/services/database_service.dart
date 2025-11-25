@@ -47,7 +47,7 @@ class DatabaseService {
     await isar.writeTxn(() async {
       await isar.playlists.delete(id);
       // Also delete associated channels
-      await isar.channels.filter().idEqualTo(id).deleteAll();
+      await isar.channels.filter().playlistIdEqualTo(id).deleteAll();
     });
   }
 
@@ -106,6 +106,35 @@ class DatabaseService {
         .filter()
         .nameContains(query, caseSensitive: false)
         .findAll();
+  }
+
+  static Future<List<Channel>> getChannelsByPlaylistId(int playlistId) async {
+    return await isar.channels
+        .filter()
+        .playlistIdEqualTo(playlistId)
+        .findAll();
+  }
+
+  static Future<Playlist?> getPlaylistById(int id) async {
+    return await isar.playlists.get(id);
+  }
+
+  static Future<void> updatePlaylistToXtream({
+    required int playlistId,
+    required String baseUrl,
+    required String username,
+    required String password,
+  }) async {
+    await isar.writeTxn(() async {
+      final playlist = await isar.playlists.get(playlistId);
+      if (playlist != null) {
+        playlist.sourceType = PlaylistSourceType.xtreamCodes;
+        playlist.url = baseUrl;
+        playlist.username = username;
+        playlist.password = password;
+        await isar.playlists.put(playlist);
+      }
+    });
   }
 
   // Profile operations

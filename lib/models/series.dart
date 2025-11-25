@@ -40,6 +40,8 @@ class Episode {
   final int seasonNumber;
   final String? duration;
   final String? plot;
+  int watchedMilliseconds = 0; // Progress in milliseconds
+  int totalMilliseconds = 0; // Total duration in milliseconds
 
   Episode({
     required this.name,
