@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/database_service.dart';
 import 'services/config_service.dart';
 import 'services/m3u_parser.dart';
@@ -10,6 +11,7 @@ import 'services/preferences_service.dart';
 import 'providers/content_provider.dart';
 import 'models/playlist.dart';
 import 'screens/dashboard_screen.dart';
+import 'widgets/welcome_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -200,6 +202,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  static const String _firstLaunchKey = 'first_launch';
+
   @override
   void initState() {
     super.initState();
@@ -207,13 +211,27 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initialize() async {
+    // Check if this is the first launch
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstLaunch = prefs.getBool(_firstLaunchKey) ?? true;
+
     // Wait a bit to show splash screen
     await Future.delayed(const Duration(seconds: 2));
 
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      // Navigate to dashboard
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => DashboardScreen(
+            showWelcomeDialog: isFirstLaunch,
+          ),
+        ),
       );
+
+      // Mark as not first launch anymore
+      if (isFirstLaunch) {
+        await prefs.setBool(_firstLaunchKey, false);
+      }
     }
   }
 

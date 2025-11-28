@@ -256,8 +256,8 @@ lib/
 - [ ] Controles parentales
 - [ ] Temas personalizables
 - [ ] Sincronización en la nube
-- [ ] Soporte para subtítulos
-- [ ] Audio multicanal
+- [x] Soporte para subtítulos
+- [x] Audio multicanal
 
 ## 🔐 Seguridad y Privacidad
 

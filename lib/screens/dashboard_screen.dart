@@ -14,9 +14,12 @@ import '../models/profile.dart';
 import '../services/database_service.dart';
 import '../services/tmdb_service.dart';
 import '../services/preferences_service.dart';
+import '../widgets/welcome_dialog.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  final bool showWelcomeDialog;
+
+  const DashboardScreen({Key? key, this.showWelcomeDialog = false}) : super(key: key);
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -67,6 +70,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadActiveProfile();
     _loadPlaylists();
     _loadDashboardData();
+
+    // Show welcome dialog if it's the first launch
+    if (widget.showWelcomeDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const WelcomeDialog(),
+        );
+      });
+    }
   }
 
   Future<void> _loadActiveProfile() async {
