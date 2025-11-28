@@ -1,13 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WelcomeDialog extends StatelessWidget {
+  static const String _firstLaunchKey = 'first_launch';
+
   const WelcomeDialog({super.key});
 
   Future<void> _launchGitHub() async {
     final Uri url = Uri.parse('https://github.com/DiegoRosales123/flutter-iptv-player');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       throw Exception('Could not launch $url');
+    }
+  }
+
+  Future<void> _onContinue(BuildContext context) async {
+    // Mark as not first launch anymore
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_firstLaunchKey, false);
+
+    if (context.mounted) {
+      Navigator.of(context).pop();
     }
   }
 
@@ -101,9 +114,9 @@ class WelcomeDialog extends StatelessWidget {
 
             // Close button
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => _onContinue(context),
               child: const Text(
-                'Continuar / Continue / Продолжить',
+                'Continuar / Continue / Продолжить / 继续',
                 style: TextStyle(fontSize: 14),
               ),
             ),
