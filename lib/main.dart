@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
@@ -8,10 +9,12 @@ import 'services/config_service.dart';
 import 'services/m3u_parser.dart';
 import 'services/xtream_service.dart';
 import 'services/preferences_service.dart';
+import 'services/language_service.dart';
 import 'providers/content_provider.dart';
 import 'models/playlist.dart';
 import 'screens/dashboard_screen.dart';
 import 'widgets/welcome_dialog.dart';
+import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -155,38 +158,53 @@ class _MyAppState extends State<MyApp> {
             ChangeNotifierProvider(
               create: (_) => ContentProvider(xtreamService),
             ),
+            ChangeNotifierProvider(
+              create: (_) => LanguageService()..loadSavedLanguage(),
+            ),
           ],
-          child: MaterialApp(
-        title: 'IPTV Player Pro',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.light,
-          ),
-          cardTheme: CardTheme(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-        darkTheme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.dark,
-          ),
-          cardTheme: CardTheme(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-        themeMode: ThemeMode.dark,
-        home: const SplashScreen(),
+          child: Consumer<LanguageService>(
+            builder: (context, languageService, child) {
+              return MaterialApp(
+                title: 'IPTV Player Pro',
+                debugShowCheckedModeBanner: false,
+                locale: languageService.currentLocale,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: AppLocalizations.supportedLocales,
+                theme: ThemeData(
+                  useMaterial3: true,
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: Colors.blue,
+                    brightness: Brightness.light,
+                  ),
+                  cardTheme: CardTheme(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                darkTheme: ThemeData(
+                  useMaterial3: true,
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: Colors.blue,
+                    brightness: Brightness.dark,
+                  ),
+                  cardTheme: CardTheme(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                themeMode: ThemeMode.dark,
+                home: const SplashScreen(),
+              );
+            },
           ),
         );
       },

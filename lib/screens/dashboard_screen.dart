@@ -15,6 +15,8 @@ import '../services/database_service.dart';
 import '../services/tmdb_service.dart';
 import '../services/preferences_service.dart';
 import '../widgets/welcome_dialog.dart';
+import '../widgets/language_selector.dart';
+import '../l10n/app_localizations.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool showWelcomeDialog;
@@ -352,6 +354,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B1A2A),
       body: Column(
@@ -457,7 +461,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }),
                 _buildIconButton(Icons.refresh, () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Playlist actualizada')),
+                    SnackBar(content: Text(l10n.playlistUpdated)),
+                  );
+                }),
+                _buildIconButton(Icons.language, () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const LanguageSelector(),
                   );
                 }),
                 _buildIconButton(Icons.tune, () {
@@ -509,11 +519,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Stats Row
                   Row(
                     children: [
-                      _buildStatCard('Canales', _totalChannels, Icons.tv, const Color(0xFF5DD3E5)),
+                      _buildStatCard(l10n.channels, _totalChannels, Icons.tv, const Color(0xFF5DD3E5)),
                       const SizedBox(width: 16),
-                      _buildStatCard('Películas', _totalMovies, Icons.movie, const Color(0xFF4CAF50)),
+                      _buildStatCard(l10n.movies, _totalMovies, Icons.movie, const Color(0xFF4CAF50)),
                       const SizedBox(width: 16),
-                      _buildStatCard('Series', _totalSeries, Icons.video_library, const Color(0xFFFF9800)),
+                      _buildStatCard(l10n.series, _totalSeries, Icons.video_library, const Color(0xFFFF9800)),
                     ],
                   ),
 
@@ -524,7 +534,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Expanded(
                         child: _buildMainCard(
-                          'TV EN VIVO',
+                          l10n.liveTV,
                           '',
                           Icons.tv,
                           () {
@@ -541,16 +551,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 24),
                       Expanded(
                         child: _buildMainCard(
-                          'PELÍCULAS',
+                          l10n.movies,
                           '',
                           Icons.play_circle_outline,
                           () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ContentGridScreen(
+                                builder: (context) => ContentGridScreen(
                                   contentType: ContentType.movie,
-                                  title: 'Películas',
+                                  title: l10n.movies,
                                 ),
                               ),
                             );
@@ -560,7 +570,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 24),
                       Expanded(
                         child: _buildMainCard(
-                          'SERIES',
+                          l10n.series,
                           '',
                           Icons.movie_outlined,
                           () {
@@ -580,7 +590,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   // Continue Watching Section
                   if (_recentChannels.isNotEmpty) ...[
-                    _buildSectionHeader('Continuar Viendo', Icons.history),
+                    _buildSectionHeader(l10n.continueWatching, Icons.history),
                     const SizedBox(height: 16),
                     SizedBox(
                       height: 260,
@@ -597,7 +607,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   // Favorites Section
                   if (_favoriteChannels.isNotEmpty) ...[
-                    _buildSectionHeader('Mis Favoritos', Icons.favorite),
+                    _buildSectionHeader(l10n.myFavorites, Icons.favorite),
                     const SizedBox(height: 16),
                     SizedBox(
                       height: 260,
@@ -617,7 +627,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Expanded(
                         child: _buildSecondaryCard(
-                          'Listas',
+                          l10n.playlists,
                           Icons.playlist_play,
                           () {
                             Navigator.push(
@@ -633,7 +643,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 20),
                       Expanded(
                         child: _buildSecondaryCard(
-                          'Configuración',
+                          l10n.configuration,
                           Icons.settings,
                           () {
                             Navigator.push(
@@ -648,7 +658,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 20),
                       Expanded(
                         child: _buildSecondaryCard(
-                          'Guía EPG',
+                          l10n.epgGuide,
                           Icons.calendar_month,
                           () {
                             Navigator.push(
