@@ -23,7 +23,6 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 ### Detalle de Series y Reproductor
 <div align="center">
   <img src="imagenes/Detalle_series.png" alt="Detalle de Serie con Episodios" width="45%">
-  <img src="imagenes/Reproductor-peliculas.png" alt="Reproductor de Video" width="45%">
 </div>
 
 ### TEMA NETFLIX
