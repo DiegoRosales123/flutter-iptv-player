@@ -1,0 +1,11 @@
+allprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            android {
+                compileOptions {
+                    coreLibraryDesugaringEnabled = false
+                }
+            }
+        }
+    }
+}

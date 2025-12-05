@@ -8,6 +8,8 @@ import '../services/database_service.dart';
 import '../services/series_parser.dart';
 import '../services/tmdb_service.dart';
 import '../providers/content_provider.dart';
+import '../providers/theme_provider.dart';
+import '../utils/app_theme.dart';
 import 'series_detail_screen.dart';
 
 class SeriesGridScreen extends StatefulWidget {
@@ -20,10 +22,17 @@ class SeriesGridScreen extends StatefulWidget {
 class _SeriesGridScreenState extends State<SeriesGridScreen> {
   Map<String, Series> _allSeries = {};
   List<Series> _filteredSeries = [];
-  Map<String, int> _categories = {}; // category -> count
+  List<Series> _trendingSeries = [];
+  List<Series> _recentSeries = [];
+  List<Series> _favoriteSeries = [];
+  Map<String, int> _categories = {};
+  Map<String, List<Series>> _categorizedSeries = {};
   String? _selectedCategory;
   String _searchQuery = '';
   String _sortBy = 'added';
+  Series? _featuredSeries;
+  bool _isLoading = true;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -32,9 +41,9 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // No longer need Xtream-specific loading - everything is in database
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSeries() async {
@@ -43,14 +52,11 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
         .where((c) => c.contentType == ContentType.series)
         .toList();
 
-    // Separar series de Xtream (URL empieza con "xtream://") y series normales (M3U)
     final xtreamSeries = seriesChannels.where((c) => c.url.startsWith('xtream://series/')).toList();
     final m3uSeries = seriesChannels.where((c) => !c.url.startsWith('xtream://series/')).toList();
 
-    // Procesar series M3U normalmente (con episodios en la base de datos)
     final seriesMap = SeriesParser.groupIntoSeries(m3uSeries);
 
-    // Para series de Xtream, crear objetos Series sin episodios (se cargarán bajo demanda)
     for (var channel in xtreamSeries) {
       final key = '${channel.group ?? "Uncategorized"}_${channel.name}';
       seriesMap[key] = Series(
@@ -58,29 +64,80 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
         poster: channel.logo,
         backdrop: channel.logo,
         plot: channel.description,
-        seasons: [], // Sin episodios por ahora
-        rating: 0.0, // Se asignará después
+        seasons: [],
+        rating: 0.0,
       );
     }
 
-    // Assign ratings to series
     _assignRatingsToSeries(seriesMap.values.toList());
 
-    // Extract unique categories (groups) from channels
     final categoryCount = <String, int>{};
-    for (var channel in seriesChannels) {
-      final category = channel.group ?? 'Uncategorized';
+    final categorizedSeries = <String, List<Series>>{};
+
+    seriesMap.forEach((key, series) {
+      final category = key.split('_').first;
       categoryCount[category] = (categoryCount[category] ?? 0) + 1;
+      categorizedSeries.putIfAbsent(category, () => []);
+      categorizedSeries[category]!.add(series);
+    });
+
+    final trending = seriesMap.values.where((s) => (s.rating ?? 0) >= 7.0).toList()
+      ..sort((a, b) => (b.rating ?? 0).compareTo(a.rating ?? 0));
+    final trendingList = trending.take(20).toList();
+
+    // Recent: Series with watched episodes
+    final recent = seriesMap.values.where((s) {
+      return s.seasons.any((season) =>
+        season.episodes.any((ep) => ep.watchedMilliseconds > 0));
+    }).toList()
+      ..sort((a, b) {
+        int getMaxWatched(Series series) {
+          int maxWatched = 0;
+          for (var season in series.seasons) {
+            for (var ep in season.episodes) {
+              if (ep.watchedMilliseconds > maxWatched) {
+                maxWatched = ep.watchedMilliseconds;
+              }
+            }
+          }
+          return maxWatched;
+        }
+        return getMaxWatched(b).compareTo(getMaxWatched(a));
+      });
+    final recentList = recent.take(20).toList();
+
+    // Favorites: We'll just use trending for now since Episode doesn't have isFavorite
+    final favorites = <Series>[];
+
+    // Select featured series
+    Series? featured;
+    if (trendingList.isNotEmpty) {
+      final withPoster = trendingList.where((s) => s.poster != null && s.poster!.isNotEmpty).toList();
+      if (withPoster.isNotEmpty) {
+        featured = withPoster[Random().nextInt(withPoster.length)];
+      } else {
+        featured = trendingList.first;
+      }
+    } else if (seriesMap.isNotEmpty) {
+      final withPoster = seriesMap.values.where((s) => s.poster != null && s.poster!.isNotEmpty).toList();
+      if (withPoster.isNotEmpty) {
+        featured = withPoster.toList()[Random().nextInt(min(10, withPoster.length))];
+      }
     }
 
     setState(() {
       _allSeries = seriesMap;
       _filteredSeries = seriesMap.values.toList();
       _categories = categoryCount;
+      _categorizedSeries = categorizedSeries;
+      _trendingSeries = trendingList;
+      _recentSeries = recentList;
+      _favoriteSeries = favorites;
+      _featuredSeries = featured;
+      _isLoading = false;
     });
   }
 
-  /// Assign ratings to series
   void _assignRatingsToSeries(List<Series> series) {
     for (final s in series) {
       if (s.rating == null || s.rating == 0) {
@@ -89,16 +146,13 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
         s.rating = rating;
       }
     }
-
-    // Load ratings from TMDB in the background
     _loadRatingsFromTmdb(series);
   }
 
   Future<void> _loadRatingsFromTmdb(List<Series> series) async {
     for (final s in series) {
-      if (!mounted) return; // Stop if widget is disposed
+      if (!mounted) return;
       final cleanedName = TmdbService.cleanContentName(s.name);
-      // Load only from real APIs (not fallback/pseudo-random)
       final rating = await TmdbService.getSeriesRatingFromApi(cleanedName);
       if (rating != null && rating > 0) {
         if (mounted) {
@@ -110,11 +164,9 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
     }
   }
 
-  /// Get rating synchronously (from fallback or pseudo-random)
   double _getRatingSync(String contentName) {
     final cleanedName = contentName.toLowerCase().trim();
 
-    // Check fallback ratings
     final fallbackRatings = {
       'breaking bad': 9.5,
       'game of thrones': 9.2,
@@ -139,7 +191,6 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
       }
     }
 
-    // Generate pseudo-random rating based on hash
     int hash = 0;
     for (int i = 0; i < cleanedName.length; i++) {
       hash = ((hash << 5) - hash) + cleanedName.codeUnitAt(i);
@@ -151,12 +202,9 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
   }
 
   void _filterSeries() {
-    // Filter by category first from the map keys
     Map<String, Series> filteredMap = {};
 
     if (_selectedCategory != null) {
-      // Filter series that belong to selected category
-      // Keys are in format: "category_seriesName"
       _allSeries.forEach((key, series) {
         if (key.startsWith('${_selectedCategory}_')) {
           filteredMap[key] = series;
@@ -168,7 +216,6 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
 
     List<Series> filtered = filteredMap.values.toList();
 
-    // Filter by search
     if (_searchQuery.isNotEmpty) {
       filtered = filtered
           .where((s) =>
@@ -176,7 +223,6 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
           .toList();
     }
 
-    // Sort
     switch (_sortBy) {
       case 'name':
         filtered.sort((a, b) => a.name.compareTo(b.name));
@@ -186,7 +232,6 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
         break;
       case 'added':
       default:
-        // Keep original order
         break;
     }
 
@@ -197,18 +242,32 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Everything is now in database - no need for Xtream-specific logic
-    final categories = ['All', ..._categories.keys];
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final theme = themeProvider.currentTheme;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F1E2B),
-      body: Row(
-        children: [
-          // Left Sidebar
-          Container(
-            width: 380,
+        if (_isLoading) {
+          return Scaffold(
+            backgroundColor: theme.backgroundPrimary,
+            body: Center(
+              child: CircularProgressIndicator(
+                color: theme.accentPrimary,
+              ),
+            ),
+          );
+        }
+
+        final categories = ['All', ..._categories.keys];
+
+        return Scaffold(
+          backgroundColor: theme.backgroundPrimary,
+          body: Row(
+            children: [
+              // Left Sidebar - Categories
+              Container(
+            width: 280,
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2B3C),
+              color: theme.sidebarBackground,
               border: Border(
                 right: BorderSide(
                   color: Colors.white.withOpacity(0.1),
@@ -220,36 +279,46 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
               children: [
                 // Logo and Back button
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white, width: 2),
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
                         ),
-                        child: const Text(
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: theme.accentPrimary, width: 2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
                           'IPTV',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
+                            color: theme.accentPrimary,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Text(
-                        'Series',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                      const Expanded(
+                        child: Text(
+                          'Series',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -258,7 +327,7 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
 
                 // Search box
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: TextField(
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
@@ -266,7 +335,8 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
                       hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
                       prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5)),
                       filled: true,
-                      fillColor: const Color(0xFF0F1E2B),
+                      fillColor: theme.backgroundTertiary,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(25),
                         borderSide: BorderSide.none,
@@ -281,129 +351,111 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
                   ),
                 ),
 
+                const SizedBox(height: 8),
+
                 // Categories list
                 Expanded(
-                  child: ListView(
-                    children: [
-                      // All category
-                      Material(
-                        color: _selectedCategory == null
-                            ? const Color(0xFF2D4A5E)
-                            : Colors.transparent,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: categories.length,
+                    itemBuilder: (context, index) {
+                      final category = categories[index];
+                      final count = category == 'All'
+                          ? _allSeries.length
+                          : (_categories[category] ?? 0);
+
+                      final isSelected = (_selectedCategory == category ||
+                          (_selectedCategory == null && category == 'All'));
+
+                      return Material(
+                        color: Colors.transparent,
                         child: InkWell(
                           onTap: () {
                             setState(() {
-                              _selectedCategory = null;
+                              _selectedCategory =
+                                  category == 'All' ? null : category;
                             });
                             _filterSeries();
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 16,
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                left: BorderSide(
+                                  color: isSelected
+                                      ? theme.accentPrimary
+                                      : Colors.transparent,
+                                  width: 3,
+                                ),
+                              ),
+                              color: isSelected
+                                  ? Colors.white.withOpacity(0.05)
+                                  : Colors.transparent,
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'All',
-                                  style: TextStyle(
-                                    color: _selectedCategory == null
-                                        ? const Color(0xFF5DD3E5)
-                                        : Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: _selectedCategory == null
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
+                                Expanded(
+                                  child: Text(
+                                    category,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? theme.accentPrimary
+                                          : Colors.white.withOpacity(0.7),
+                                      fontSize: 14,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Text(
-                                  _allSeries.length.toString(),
-                                  style: TextStyle(
-                                    color: _selectedCategory == null
-                                        ? const Color(0xFF5DD3E5)
-                                        : Colors.white54,
-                                    fontSize: 14,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? theme.accentPrimary.withOpacity(0.2)
+                                        : theme.backgroundTertiary,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    count.toString(),
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? theme.accentPrimary
+                                          : Colors.white.withOpacity(0.5),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                      ),
-
-                      // Category items
-                      ..._categories.entries.map((entry) {
-                              final category = entry.key;
-                              final count = entry.value;
-                              final isSelected = _selectedCategory == category;
-
-                              return Material(
-                                color: isSelected
-                                    ? const Color(0xFF2D4A5E)
-                                    : Colors.transparent,
-                                child: InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedCategory = category;
-                                    });
-                                    _filterSeries();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 16,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            category.toUpperCase(),
-                                            style: TextStyle(
-                                              color: isSelected
-                                                  ? const Color(0xFF5DD3E5)
-                                                  : Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        Text(
-                                          count.toString(),
-                                          style: TextStyle(
-                                            color: isSelected
-                                                ? const Color(0xFF5DD3E5)
-                                                : Colors.white54,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                    ],
+                      );
+                    },
                   ),
                 ),
               ],
             ),
-          ),
+              ),
 
-          // Right side - Series Grid
-          Expanded(
+              // Right side - Content
+              Expanded(
             child: Column(
               children: [
-                // Top bar with search and filters
+                // Top bar with sort options
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A2B3C),
+                    color: theme.backgroundPrimary,
                     border: Border(
                       bottom: BorderSide(
                         color: Colors.white.withOpacity(0.1),
@@ -413,907 +465,728 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
                   ),
                   child: Row(
                     children: [
-                      // Search bar
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2D4A5E),
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: TextField(
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              hintText: 'Search',
-                              hintStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
+                      // Sort dropdown
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: theme.sidebarBackground,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: theme.borderPrimary.withOpacity(0.3)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _sortBy,
+                            dropdownColor: theme.sidebarBackground,
+                            icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'added',
+                                child: Text('Ordenar por agregado'),
                               ),
-                              prefixIcon: Icon(
-                                Icons.search,
-                                color: Colors.white.withOpacity(0.5),
+                              DropdownMenuItem(
+                                value: 'name',
+                                child: Text('Ordenar por nombre'),
                               ),
-                              border: InputBorder.none,
-                            ),
+                              DropdownMenuItem(
+                                value: 'rating',
+                                child: Text('Ordenar por calificación'),
+                              ),
+                            ],
                             onChanged: (value) {
                               setState(() {
-                                _searchQuery = value;
+                                _sortBy = value!;
                               });
                               _filterSeries();
                             },
                           ),
                         ),
                       ),
-                      const SizedBox(width: 16),
 
-                      // Sort dropdown
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2D4A5E),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButton<String>(
-                          value: _sortBy,
-                          dropdownColor: const Color(0xFF2D4A5E),
-                          underline: Container(),
-                          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-                          style: const TextStyle(color: Colors.white),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'added',
-                              child: Text('Ordenar por agregado'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'name',
-                              child: Text('Ordenar por nombre'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'rating',
-                              child: Text('Ordenar por calificación'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              _sortBy = value!;
-                            });
-                            _filterSeries();
-                          },
-                        ),
-                      ),
+                      const Spacer(),
 
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.grid_view, color: Colors.white),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.calendar_today, color: Colors.white),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.play_circle_outline,
-                            color: Colors.white),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.view_module, color: Color(0xFF5DD3E5)),
-                        onPressed: () {},
+                      // Total count
+                      Text(
+                        '${_filteredSeries.length} series',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
                 ),
 
-                // Series Grid with Sections
+                // Main content area
                 Expanded(
-                  child: _selectedCategory == null
-                          ? CustomScrollView(
-                              slivers: [
-                                // Trending Section
-                                SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                                    child: _buildSectionHeader('En Tendencia', Icons.whatshot),
-                                  ),
-                                ),
-                                SliverToBoxAdapter(
-                                  child: SizedBox(
-                                    height: 280,
-                                    child: _allSeries.isEmpty
-                                        ? Center(
-                                            child: Text(
-                                              'Sin contenido',
-                                              style: TextStyle(
-                                                color: Colors.white.withOpacity(0.5),
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          )
-                                        : ListView.builder(
-                                            scrollDirection: Axis.horizontal,
-                                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                                            itemCount: _getTrendingSeries().length,
-                                            itemBuilder: (context, index) {
-                                              final series = _getTrendingSeries()[index];
-                                              return _buildTrendingSeriesCard(series, index + 1);
-                                            },
-                                          ),
-                                  ),
-                                ),
-
-                                // Recently Watched Section
-                                SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
-                                    child: _buildSectionHeader('Visto Recientemente', Icons.history),
-                                  ),
-                                ),
-                                SliverToBoxAdapter(
-                                  child: SizedBox(
-                                    height: 220,
-                                    child: _allSeries.values
-                                            .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
-                                            .isEmpty
-                                        ? Center(
-                                            child: Text(
-                                              'Sin contenido',
-                                              style: TextStyle(
-                                                color: Colors.white.withOpacity(0.5),
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          )
-                                        : ListView.builder(
-                                            scrollDirection: Axis.horizontal,
-                                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                                            itemCount: _allSeries.values
-                                                .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
-                                                .length,
-                                            itemBuilder: (context, index) {
-                                              final recentlyWatched = _allSeries.values
-                                                  .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
-                                                  .toList();
-                                              if (index < recentlyWatched.length) {
-                                                return _buildHorizontalSeriesCard(recentlyWatched[index]);
-                                              }
-                                              return const SizedBox.shrink();
-                                            },
-                                          ),
-                                  ),
-                                ),
-
-                                // Favorites Section
-                                SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
-                                    child: _buildSectionHeader('Mis Favoritos', Icons.favorite),
-                                  ),
-                                ),
-                                SliverToBoxAdapter(
-                                  child: SizedBox(
-                                    height: 220,
-                                    child: _allSeries.values
-                                            .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
-                                            .isEmpty
-                                        ? Center(
-                                            child: Text(
-                                              'Sin favoritos',
-                                              style: TextStyle(
-                                                color: Colors.white.withOpacity(0.5),
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          )
-                                        : ListView.builder(
-                                            scrollDirection: Axis.horizontal,
-                                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                                            itemCount: _allSeries.values
-                                                .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
-                                                .length,
-                                            itemBuilder: (context, index) {
-                                              final favorites = _allSeries.values
-                                                  .where((s) => s.seasons.isNotEmpty && s.seasons.first.episodes.isNotEmpty && s.seasons.first.episodes.first.watchedMilliseconds > 0)
-                                                  .toList();
-                                              if (index < favorites.length) {
-                                                return _buildHorizontalSeriesCard(favorites[index]);
-                                              }
-                                              return const SizedBox.shrink();
-                                            },
-                                          ),
-                                  ),
-                                ),
-
-                                const SliverToBoxAdapter(child: SizedBox(height: 32)),
-                              ],
-                            )
-                          : GridView.builder(
-                              padding: const EdgeInsets.all(16),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 4,
-                                childAspectRatio: 0.65,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                              ),
-                              itemCount: _filteredSeries.length,
-                              itemBuilder: (context, index) {
-                                return _buildSeriesCard(_filteredSeries[index]);
-                              },
-                            )
+                  child: _selectedCategory == null && _searchQuery.isEmpty
+                      ? _buildNetflixHomeView(theme)
+                      : _buildFilteredGridView(theme),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Series> _getTrendingSeries() {
-    // Sort by rating from ALL series (not filtered) - trending = highest rated
-    final sorted = List<Series>.from(_filteredSeries.isEmpty ? _allSeries.values.toList() : _filteredSeries);
-    sorted.sort((a, b) => (b.rating ?? 0).compareTo(a.rating ?? 0));
-    return sorted.take(10).toList();
-  }
-
-  Widget _buildTrendingSeriesCard(Series series, int position) {
-    return Container(
-      width: 200,
-      margin: const EdgeInsets.only(right: 20),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SeriesDetailScreen(series: series),
-              ),
-            );
-            _loadSeries();
-          },
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: const Color(0xFF1A2B3C),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.6),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Background image
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    color: const Color(0xFF2D4A5E),
-                  ),
-                  child: series.poster != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.network(
-                            series.poster!,
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Center(
-                                child: Icon(
-                                  Icons.movie,
-                                  size: 60,
-                                  color: Colors.white.withOpacity(0.2),
-                                ),
-                              );
-                            },
-                          ),
-                        )
-                      : Center(
-                          child: Icon(
-                            Icons.movie,
-                            size: 60,
-                            color: Colors.white.withOpacity(0.2),
-                          ),
-                        ),
-                ),
-
-                // Dark gradient overlay
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.7),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Top 10 badge
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE50914),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.6),
-                          blurRadius: 12,
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      'TOP $position',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Rating badge
-                if (series.rating != null && series.rating! > 0)
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getRatingColor(series.rating ?? 0),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.6),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.star,
-                            color: Colors.white,
-                            size: 13,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            (series.rating ?? 0).toStringAsFixed(1),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Title at bottom
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.circular(14),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.8),
-                        ],
-                      ),
-                    ),
-                    child: Text(
-                      series.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFFE50914), size: 28),
-          const SizedBox(width: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHorizontalSeriesCard(Series series) {
-    return Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 16),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SeriesDetailScreen(series: series),
-              ),
-            );
-            _loadSeries();
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: const Color(0xFF1A2B3C),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Poster image
-                Expanded(
-                  child: Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(12),
-                          ),
-                          color: const Color(0xFF2D4A5E),
-                        ),
-                        child: series.poster != null
-                            ? ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(12),
-                                ),
-                                child: Image.network(
-                                  series.poster!,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Center(
-                                      child: Icon(
-                                        Icons.movie,
-                                        size: 40,
-                                        color: Colors.white.withOpacity(0.3),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              )
-                            : Center(
-                                child: Icon(
-                                  Icons.movie,
-                                  size: 40,
-                                  color: Colors.white.withOpacity(0.3),
-                                ),
-                              ),
-                      ),
-                      // Gradient overlay
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(12),
-                          ),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.3),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Rating badge
-                      if (series.rating != null && series.rating! > 0)
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getRatingColor(series.rating ?? 0),
-                              borderRadius: BorderRadius.circular(6),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.5),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  color: Colors.white,
-                                  size: 11,
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  (series.rating ?? 0.0).toStringAsFixed(1),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                // Title
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
-                  child: Text(
-                    series.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSeriesCard(Series series) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SeriesDetailScreen(series: series),
-            ),
-          );
-          // Reload series when returning from detail screen to show updated progress
-          _loadSeries();
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: const Color(0xFF1A2B3C),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Poster image
-              Expanded(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(8),
-                        ),
-                        color: const Color(0xFF2D4A5E),
-                      ),
-                      child: series.poster != null
-                          ? ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(8),
-                              ),
-                              child: Image.network(
-                                series.poster!,
-                                width: double.infinity,
-                                height: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Center(
-                                    child: Icon(
-                                      Icons.movie,
-                                      size: 48,
-                                      color: Colors.white.withOpacity(0.3),
-                                    ),
-                                  );
-                                },
-                              ),
-                            )
-                          : Center(
-                              child: Icon(
-                                Icons.movie,
-                                size: 48,
-                                color: Colors.white.withOpacity(0.3),
-                              ),
-                            ),
-                    ),
-
-                    // Rating badge (show only if rating > 0)
-                    if (series.rating != null && series.rating! > 0)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getRatingColor(series.rating ?? 0),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.white,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                (series.rating ?? 0.0).toStringAsFixed(1),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-
-              // Title
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Text(
-                  series.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Color _getRatingColor(double rating) {
-    if (rating >= 8.0) {
-      return const Color(0xFF4CAF50); // Green for excellent
-    } else if (rating >= 7.0) {
-      return const Color(0xFF8BC34A); // Light green for very good
-    } else if (rating >= 6.0) {
-      return const Color(0xFFFFC107); // Amber for good
-    } else if (rating >= 5.0) {
-      return const Color(0xFFFF9800); // Orange for fair
-    } else {
-      return const Color(0xFFF44336); // Red for poor
-    }
-  }
-
-  Widget _buildXtreamGrid(ContentProvider contentProvider) {
-    if (contentProvider.isLoadingSeries) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    final items = contentProvider.filteredSeriesItems;
-
-    if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.tv_outlined,
-              size: 64,
-              color: Colors.white.withOpacity(0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Sin series',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 0.65,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        return _buildXtreamSeriesCard(items[index], contentProvider);
+        );
       },
     );
   }
 
-  Widget _buildXtreamSeriesCard(SeriesItem series, ContentProvider contentProvider) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () async {
-          // For now, just show a message that series playback is not yet implemented
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Series detail view coming soon'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: const Color(0xFF1A2B3C),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Poster image
-              Expanded(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(8),
-                        ),
-                        color: const Color(0xFF2D4A5E),
+  Widget _buildNetflixHomeView(AppThemeType theme) {
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        // Hero Banner
+        SliverToBoxAdapter(
+          child: _buildHeroBanner(theme),
+        ),
+
+        // Trending Section
+        if (_trendingSeries.isNotEmpty) ...[
+          _buildSectionHeader('En Tendencia', Icons.whatshot, theme),
+          _buildHorizontalCarousel(_trendingSeries, theme, isLarge: true, showRank: true),
+        ],
+
+        // Recently Watched
+        if (_recentSeries.isNotEmpty) ...[
+          _buildSectionHeader('Continuar Viendo', Icons.history, theme),
+          _buildHorizontalCarousel(_recentSeries, theme, showProgress: true),
+        ],
+
+        // Favorites
+        if (_favoriteSeries.isNotEmpty) ...[
+          _buildSectionHeader('Mi Lista', Icons.favorite, theme),
+          _buildHorizontalCarousel(_favoriteSeries, theme),
+        ],
+
+        // Category carousels
+        ..._buildCategoryCarousels(theme),
+
+        // Bottom padding
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 40),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeroBanner(AppThemeType theme) {
+    if (_featuredSeries == null) {
+      return const SizedBox(height: 80);
+    }
+
+    return Container(
+      height: 450,
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background image
+          if (_featuredSeries!.poster != null)
+            ShaderMask(
+              shaderCallback: (rect) {
+                return LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black,
+                    Colors.black.withOpacity(0.8),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.4, 1.0],
+                ).createShader(rect);
+              },
+              blendMode: BlendMode.dstIn,
+              child: Image.network(
+                _featuredSeries!.poster!,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          theme.cardBackground,
+                          theme.backgroundPrimary,
+                        ],
                       ),
-                      child: series.posterUrl != null
-                          ? ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(8),
-                              ),
-                              child: Image.network(
-                                series.posterUrl!,
-                                width: double.infinity,
-                                height: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Center(
-                                    child: Icon(
-                                      Icons.tv,
-                                      size: 48,
-                                      color: Colors.white.withOpacity(0.3),
-                                    ),
-                                  );
-                                },
-                              ),
-                            )
-                          : Center(
-                              child: Icon(
-                                Icons.tv,
-                                size: 48,
-                                color: Colors.white.withOpacity(0.3),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          // Gradient overlays
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  theme.backgroundPrimary.withOpacity(0.8),
+                  theme.backgroundPrimary,
+                ],
+                stops: const [0.2, 0.7, 1.0],
+              ),
+            ),
+          ),
+
+          // Left gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  theme.backgroundPrimary.withOpacity(0.9),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.6],
+              ),
+            ),
+          ),
+
+          // Content
+          Positioned(
+            left: 40,
+            bottom: 60,
+            right: MediaQuery.of(context).size.width * 0.35,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Featured badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.accentPrimary,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'SERIE DESTACADA',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Title
+                Text(
+                  _featuredSeries!.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    height: 1.1,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(2, 2),
+                        blurRadius: 8,
+                        color: Colors.black,
+                      ),
+                    ],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+
+                // Rating and seasons info
+                Row(
+                  children: [
+                    if (_featuredSeries!.rating != null && _featuredSeries!.rating! > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.getRatingColor(_featuredSeries!.rating!),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star, color: Colors.white, size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              _featuredSeries!.rating!.toStringAsFixed(1),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    if (_featuredSeries!.seasons.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: theme.accentPrimary.withOpacity(0.5)),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${_featuredSeries!.seasons.length} temporada${_featuredSeries!.seasons.length > 1 ? 's' : ''}',
+                          style: TextStyle(
+                            color: theme.accentPrimary.withOpacity(0.9),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Description
+                if (_featuredSeries!.plot != null && _featuredSeries!.plot!.isNotEmpty)
+                  Text(
+                    _featuredSeries!.plot!,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                      height: 1.4,
                     ),
-                    // Favorite button
-                    Positioned(
-                      top: 8,
-                      right: 8,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                const SizedBox(height: 20),
+
+                // Action buttons
+                Row(
+                  children: [
+                    // Play button
+                    ElevatedButton.icon(
+                      onPressed: () => _showDetails(_featuredSeries!),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.accentPrimary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.play_arrow, size: 24),
+                      label: const Text(
+                        'Reproducir',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // More info button
+                    ElevatedButton.icon(
+                      onPressed: () => _showDetails(_featuredSeries!),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.cardBackgroundLight.withOpacity(0.8),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.info_outline, size: 20),
+                      label: const Text(
+                        'Más info',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 10),
+
+                    // Add to list button
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: theme.accentPrimary.withOpacity(0.5), width: 2),
+                      ),
                       child: IconButton(
                         icon: Icon(
-                          series.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: series.isFavorite ? Colors.red : Colors.white,
-                          size: 20,
+                          Icons.add,
+                          color: theme.accentPrimary,
                         ),
-                        onPressed: () {
-                          contentProvider.toggleSeriesFavorite(series.id);
-                        },
+                        onPressed: () {},
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Age rating badge
+          Positioned(
+            right: 24,
+            bottom: 70,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: theme.accentPrimary.withOpacity(0.5), width: 3),
+                ),
+                color: Colors.black.withOpacity(0.6),
+              ),
+              child: const Text(
+                '16+',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  SliverToBoxAdapter _buildSectionHeader(String title, IconData icon, AppThemeType theme) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+        child: Row(
+          children: [
+            Icon(icon, color: theme.accentPrimary, size: 22),
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.white.withOpacity(0.3),
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  SliverToBoxAdapter _buildHorizontalCarousel(
+    List<Series> items,
+    AppThemeType theme, {
+    bool isLarge = false,
+    bool showProgress = false,
+    bool showRank = false,
+  }) {
+    final cardWidth = isLarge ? 200.0 : 160.0;
+    final cardHeight = isLarge ? 320.0 : 260.0;
+
+    return SliverToBoxAdapter(
+      child: SizedBox(
+        height: cardHeight,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            return _buildNetflixCard(
+              items[index],
+              theme,
+              width: cardWidth,
+              isLarge: isLarge,
+              showProgress: showProgress,
+              rank: showRank ? index + 1 : null,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNetflixCard(
+    Series series,
+    AppThemeType theme, {
+    required double width,
+    bool isLarge = false,
+    bool showProgress = false,
+    int? rank,
+  }) {
+    return Container(
+      width: width,
+      margin: const EdgeInsets.only(right: 10),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => _showDetails(series),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Main card
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.cardBackground.withOpacity(0.8),
+                      theme.backgroundTertiary.withOpacity(0.6),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: theme.borderPrimary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Image
+                    Expanded(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(8),
+                            ),
+                            child: series.poster != null
+                                ? Image.network(
+                                    series.poster!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return _buildPlaceholder(isLarge, theme);
+                                    },
+                                  )
+                                : _buildPlaceholder(isLarge, theme),
+                          ),
+
+                          // Gradient overlay
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 60,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withOpacity(0.7),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Rating badge
+                          if (series.rating != null && series.rating! > 0)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.getRatingColor(series.rating!),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.star,
+                                      color: Colors.white,
+                                      size: 11,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      series.rating!.toStringAsFixed(1),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                          // Hover effect
+                          Positioned.fill(
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _showDetails(series),
+                                hoverColor: theme.accentPrimary.withOpacity(0.1),
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Title
+                    Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            series.name,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isLarge ? 13 : 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (series.seasons.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              '${series.seasons.length} temporada${series.seasons.length > 1 ? 's' : ''}',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 10,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
 
-              // Title
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Text(
-                  series.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+              // Rank number (TOP 10 style)
+              if (rank != null && rank <= 10)
+                Positioned(
+                  left: -15,
+                  bottom: 40,
+                  child: Text(
+                    '$rank',
+                    style: TextStyle(
+                      color: theme.borderPrimary.withOpacity(0.5),
+                      fontSize: 80,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                      shadows: [
+                        Shadow(
+                          offset: const Offset(2, 2),
+                          blurRadius: 4,
+                          color: Colors.black.withOpacity(0.5),
+                        ),
+                      ],
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildPlaceholder(bool isLarge, AppThemeType theme) {
+    return Container(
+      color: theme.cardBackground,
+      child: Center(
+        child: Icon(
+          Icons.tv,
+          size: isLarge ? 50 : 36,
+          color: Colors.white.withOpacity(0.2),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildCategoryCarousels(AppThemeType theme) {
+    final List<Widget> sections = [];
+    final sortedCategories = _categorizedSeries.keys.toList()
+      ..sort((a, b) => (_categorizedSeries[b]?.length ?? 0)
+          .compareTo(_categorizedSeries[a]?.length ?? 0));
+
+    // Show top 8 categories as carousels
+    for (final category in sortedCategories.take(8)) {
+      final items = _categorizedSeries[category] ?? [];
+      if (items.isNotEmpty) {
+        sections.add(_buildSectionHeader(category, Icons.category, theme));
+        sections.add(_buildHorizontalCarousel(items.take(20).toList(), theme));
+      }
+    }
+
+    return sections;
+  }
+
+  Widget _buildFilteredGridView(AppThemeType theme) {
+    return GridView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(24),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 5,
+        childAspectRatio: 0.65,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 20,
+      ),
+      itemCount: _filteredSeries.length,
+      itemBuilder: (context, index) {
+        return _buildNetflixCard(
+          _filteredSeries[index],
+          theme,
+          width: 160,
+        );
+      },
+    );
+  }
+
+  void _showDetails(Series series) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SeriesDetailScreen(series: series),
+      ),
+    );
+    _loadSeries();
   }
 }

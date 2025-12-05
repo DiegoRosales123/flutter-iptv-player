@@ -1,4 +1,6 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
@@ -11,8 +13,10 @@ import 'services/xtream_service.dart';
 import 'services/preferences_service.dart';
 import 'services/language_service.dart';
 import 'providers/content_provider.dart';
+import 'providers/theme_provider.dart';
 import 'models/playlist.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/mobile_dashboard_screen.dart';
 import 'widgets/welcome_dialog.dart';
 import 'l10n/app_localizations.dart';
 
@@ -32,23 +36,25 @@ void main() async {
     await DatabaseService.initialize();
     print('Database initialized');
 
-    // Initialize Window Manager for desktop
-    await windowManager.ensureInitialized();
+    // Initialize Window Manager for desktop only
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      await windowManager.ensureInitialized();
 
-    const windowOptions = WindowOptions(
-      size: Size(1280, 720),
-      minimumSize: Size(800, 600),
-      center: true,
-      backgroundColor: Colors.black,
-      skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.normal,
-      title: 'IPTV Player Pro',
-    );
+      const windowOptions = WindowOptions(
+        size: Size(1280, 720),
+        minimumSize: Size(800, 600),
+        center: true,
+        backgroundColor: Colors.black,
+        skipTaskbar: false,
+        titleBarStyle: TitleBarStyle.normal,
+        title: 'IPTV Player Pro',
+      );
 
-    await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.show();
-      await windowManager.focus();
-    });
+      await windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.show();
+        await windowManager.focus();
+      });
+    }
 
     runApp(const MyApp());
   } catch (e, stackTrace) {
@@ -161,6 +167,9 @@ class _MyAppState extends State<MyApp> {
             ChangeNotifierProvider(
               create: (_) => LanguageService()..loadSavedLanguage(),
             ),
+            ChangeNotifierProvider(
+              create: (_) => ThemeProvider(),
+            ),
           ],
           child: Consumer<LanguageService>(
             builder: (context, languageService, child) {
@@ -232,9 +241,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   void initState() {
     super.initState();
 
-    // Scale animation for the icon
+    // Scale animation for the icon - más lenta y suave
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
     _scaleAnimation = CurvedAnimation(
@@ -242,29 +251,29 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       curve: Curves.elasticOut,
     );
 
-    // Fade animation for text
+    // Fade animation for text - más lenta
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
-      curve: Curves.easeIn,
+      curve: Curves.easeInOut,
     );
 
-    // Rotate animation for loading indicator
+    // Rotate animation for loading indicator - más suave
     _rotateController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat();
     _rotateAnimation = CurvedAnimation(
       parent: _rotateController,
-      curve: Curves.linear,
+      curve: Curves.easeInOut,
     );
 
-    // Start animations
+    // Start animations con mejor timing
     _scaleController.forward();
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) _fadeController.forward();
     });
 
@@ -284,20 +293,32 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     final prefs = await SharedPreferences.getInstance();
     final isFirstLaunch = prefs.getBool(_firstLaunchKey) ?? true;
 
-    // Wait a bit to show splash screen
-    await Future.delayed(const Duration(milliseconds: 2500));
+    // Wait to show splash screen with animations
+    await Future.delayed(const Duration(milliseconds: 3500));
 
     if (mounted) {
       // Navigate to dashboard with fade transition
+      // Use mobile dashboard for Android, desktop dashboard for everything else
+      final bool isAndroid = !kIsWeb && Platform.isAndroid;
+
       await Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => DashboardScreen(
-            showWelcomeDialog: isFirstLaunch,
-          ),
+          pageBuilder: (context, animation, secondaryAnimation) => isAndroid
+              ? MobileDashboardScreen(showWelcomeDialog: isFirstLaunch)
+              : DashboardScreen(showWelcomeDialog: isFirstLaunch),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
+            // Transición combinada: fade + scale
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+                  CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                ),
+                child: child,
+              ),
+            );
           },
-          transitionDuration: const Duration(milliseconds: 500),
+          transitionDuration: const Duration(milliseconds: 800),
         ),
       );
     }

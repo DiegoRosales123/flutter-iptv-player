@@ -111,6 +111,25 @@ class AppLocalizations {
       'now_playing': 'Reproduciendo ahora',
       'next': 'Siguiente',
       'previous': 'Anterior',
+
+      // Sort
+      'sort_by_added': 'Ordenar por Fecha',
+      'sort_by_name': 'Ordenar por Nombre',
+      'sort_by_rating': 'Ordenar por Calificación',
+
+      // Details
+      'overview': 'Sinopsis',
+      'views': 'Vistas',
+      'rating': 'Calificación',
+
+      // Theme Selector
+      'select_theme': 'Seleccionar Tema',
+      'theme_original': 'Original',
+      'theme_original_desc': 'Tema azul cyan con estilo moderno',
+      'theme_netflix': 'Netflix Dark',
+      'theme_netflix_desc': 'Tema oscuro estilo Netflix',
+      'theme_applied': 'Tema aplicado',
+      'close': 'Cerrar',
     },
     'en_US': {
       // General
@@ -199,6 +218,25 @@ class AppLocalizations {
       'now_playing': 'Now Playing',
       'next': 'Next',
       'previous': 'Previous',
+
+      // Sort
+      'sort_by_added': 'Sort by Date Added',
+      'sort_by_name': 'Sort by Name',
+      'sort_by_rating': 'Sort by Rating',
+
+      // Details
+      'overview': 'Overview',
+      'views': 'Views',
+      'rating': 'Rating',
+
+      // Theme Selector
+      'select_theme': 'Select Theme',
+      'theme_original': 'Original',
+      'theme_original_desc': 'Modern cyan blue theme',
+      'theme_netflix': 'Netflix Dark',
+      'theme_netflix_desc': 'Netflix-style dark theme',
+      'theme_applied': 'Theme applied',
+      'close': 'Close',
     },
     'zh_CN': {
       // General
@@ -287,6 +325,25 @@ class AppLocalizations {
       'now_playing': '正在播放',
       'next': '下一个',
       'previous': '上一个',
+
+      // Sort
+      'sort_by_added': '按添加日期排序',
+      'sort_by_name': '按名称排序',
+      'sort_by_rating': '按评分排序',
+
+      // Details
+      'overview': '概述',
+      'views': '观看次数',
+      'rating': '评分',
+
+      // Theme Selector
+      'select_theme': '选择主题',
+      'theme_original': '原始',
+      'theme_original_desc': '现代青色蓝色主题',
+      'theme_netflix': 'Netflix 暗色',
+      'theme_netflix_desc': 'Netflix风格的暗色主题',
+      'theme_applied': '主题已应用',
+      'close': '关闭',
     },
     'ru_RU': {
       // General
@@ -375,6 +432,25 @@ class AppLocalizations {
       'now_playing': 'Сейчас играет',
       'next': 'Следующий',
       'previous': 'Предыдущий',
+
+      // Sort
+      'sort_by_added': 'Сортировать по дате добавления',
+      'sort_by_name': 'Сортировать по названию',
+      'sort_by_rating': 'Сортировать по рейтингу',
+
+      // Details
+      'overview': 'Обзор',
+      'views': 'Просмотры',
+      'rating': 'Рейтинг',
+
+      // Theme Selector
+      'select_theme': 'Выбрать тему',
+      'theme_original': 'Оригинальная',
+      'theme_original_desc': 'Современная голубая тема',
+      'theme_netflix': 'Netflix Темная',
+      'theme_netflix_desc': 'Темная тема в стиле Netflix',
+      'theme_applied': 'Тема применена',
+      'close': 'Закрыть',
     },
   };
 
@@ -461,6 +537,22 @@ class AppLocalizations {
   String get nowPlaying => translate('now_playing');
   String get next => translate('next');
   String get previous => translate('previous');
+
+  String get sortByAdded => translate('sort_by_added');
+  String get sortByName => translate('sort_by_name');
+  String get sortByRating => translate('sort_by_rating');
+
+  String get overview => translate('overview');
+  String get views => translate('views');
+  String get rating => translate('rating');
+
+  String get selectTheme => translate('select_theme');
+  String get themeOriginal => translate('theme_original');
+  String get themeOriginalDesc => translate('theme_original_desc');
+  String get themeNetflix => translate('theme_netflix');
+  String get themeNetflixDesc => translate('theme_netflix_desc');
+  String get themeApplied => translate('theme_applied');
+  String get close => translate('close');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

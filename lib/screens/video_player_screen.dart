@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -91,9 +93,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _hideControlsTimer?.cancel();
     _focusNode.dispose();
 
-    // Exit fullscreen before disposing
-    if (_isFullscreen) {
+    // Exit fullscreen before disposing (desktop only)
+    if (_isFullscreen && !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       windowManager.setFullScreen(false);
+    }
+
+    // Restore system UI on mobile
+    if (!kIsWeb && Platform.isAndroid) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
 
     // Save watch progress before disposing
@@ -199,7 +206,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _isFullscreen = !_isFullscreen;
     });
 
-    await windowManager.setFullScreen(_isFullscreen);
+    // Desktop fullscreen
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      await windowManager.setFullScreen(_isFullscreen);
+    }
+    // Mobile fullscreen - hide/show system UI
+    else if (!kIsWeb && Platform.isAndroid) {
+      if (_isFullscreen) {
+        await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      } else {
+        await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      }
+    }
+
     _showControlsTemporarily();
   }
 
@@ -498,11 +517,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             child: Stack(
             children: [
               // Video Player
-              Center(
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : _error != null
-                        ? Column(
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(
+                          child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Icon(
@@ -517,12 +536,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                 textAlign: TextAlign.center,
                               ),
                             ],
-                          )
-                        : Video(
+                          ),
+                        )
+                      : SizedBox.expand(
+                          child: Video(
                             controller: controller,
                             controls: NoVideoControls,
                           ),
-              ),
+                        ),
 
               // Top Controls
               Positioned(

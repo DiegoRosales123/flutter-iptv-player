@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'dart:io' show Platform;
+import 'package:provider/provider.dart';
 import 'live_tv_screen.dart';
 import 'playlist_manager_screen.dart';
 import 'settings_screen.dart';
@@ -8,6 +10,9 @@ import 'series_grid_screen.dart';
 import 'profiles_screen.dart';
 import 'epg_screen.dart';
 import 'video_player_screen.dart';
+import 'mobile_live_tv_screen.dart';
+import 'mobile_movies_screen.dart';
+import 'mobile_series_screen.dart';
 import '../models/channel.dart';
 import '../models/playlist.dart';
 import '../models/profile.dart';
@@ -16,7 +21,10 @@ import '../services/tmdb_service.dart';
 import '../services/preferences_service.dart';
 import '../widgets/welcome_dialog.dart';
 import '../widgets/language_selector.dart';
+import '../widgets/theme_selector.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/responsive.dart';
+import '../providers/theme_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool showWelcomeDialog;
@@ -355,99 +363,118 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final bool isMobile = Responsive.isMobile(context);
+    final EdgeInsets padding = Responsive.getPadding(context);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0B1A2A),
-      body: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.fromLTRB(40, 20, 40, 20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFF0F2438),
-                  const Color(0xFF0B1A2A),
-                ],
-              ),
-            ),
-            child: Row(
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final theme = themeProvider.currentTheme;
+
+        return Scaffold(
+          backgroundColor: theme.backgroundPrimary,
+          // Add drawer for mobile navigation
+          drawer: isMobile ? _buildMobileDrawer(l10n) : null,
+          body: SafeArea(
+            child: Column(
               children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.fromLTRB(
+                    padding.left,
+                    16,
+                    padding.right,
+                    padding.bottom / 2,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        theme.backgroundSecondary,
+                        theme.backgroundPrimary,
+                      ],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                // Add menu button for mobile
+                if (isMobile)
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white),
+                    onPressed: () {
+                      Scaffold.of(context).openDrawer();
+                    },
+                  ),
                 // Logo with glow effect
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.all(isMobile ? 8 : 10),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1E3A5F), Color(0xFF2D5F8D)],
+                    gradient: LinearGradient(
+                      colors: [theme.borderPrimary.withOpacity(0.6), theme.borderPrimary],
                     ),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF2D5F8D).withOpacity(0.3),
+                        color: theme.borderPrimary.withOpacity(0.3),
                         blurRadius: 12,
                         spreadRadius: 2,
                       ),
                     ],
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.tv,
                     color: Colors.white,
-                    size: 28,
+                    size: isMobile ? 20 : 28,
                   ),
                 ),
-                const SizedBox(width: 14),
-                const Text(
+                SizedBox(width: isMobile ? 8 : 14),
+                Text(
                   'IPTV',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 28,
+                    fontSize: isMobile ? 18 : 28,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 1.5,
                   ),
                 ),
-                const SizedBox(width: 40),
-                // Playlist selector
-                _buildPlaylistSelector(),
+                if (!isMobile) const SizedBox(width: 40),
+                // Playlist selector (hide on mobile)
+                if (!isMobile) _buildPlaylistSelector(),
                 const Spacer(),
-                // Current time with refined styling
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _getCurrentTime(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w400,
-                        letterSpacing: 0.5,
+                // Current time with refined styling (hide date on mobile)
+                if (!isMobile)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _getCurrentTime(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _getCurrentDate(),
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w300,
-                        letterSpacing: 0.3,
+                      const SizedBox(height: 2),
+                      Text(
+                        _getCurrentDate(),
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w300,
+                          letterSpacing: 0.3,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 32),
-                // Action icons with better styling
-                _buildIconButton(Icons.search, () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Búsqueda global próximamente')),
-                  );
-                }),
-                _buildIconButton(Icons.notifications_outlined, () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notificaciones próximamente')),
-                  );
-                }),
+                    ],
+                  ),
+                SizedBox(width: isMobile ? 8 : 32),
+                // Action icons with better styling (condensed for mobile)
+                if (!isMobile)
+                  _buildIconButton(Icons.search, () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.comingSoon)),
+                    );
+                  }),
                 _buildProfileButton(() async {
                   final result = await Navigator.push(
                     context,
@@ -459,15 +486,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _loadActiveProfile();
                   }
                 }),
-                _buildIconButton(Icons.refresh, () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.playlistUpdated)),
-                  );
-                }),
+                if (!isMobile)
+                  _buildIconButton(Icons.refresh, () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.playlistUpdated)),
+                    );
+                  }),
                 _buildIconButton(Icons.language, () {
                   showDialog(
                     context: context,
                     builder: (context) => const LanguageSelector(),
+                  );
+                }),
+                // Theme selector button
+                _buildIconButton(Icons.palette, () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const ThemeSelector(),
                   );
                 }),
                 _buildIconButton(Icons.tune, () {
@@ -482,118 +517,198 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
-                      backgroundColor: const Color(0xFF1A2F44),
+                      backgroundColor: theme.cardBackground,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      title: const Text('Salir', style: TextStyle(color: Colors.white)),
-                      content: const Text(
-                        '¿Estás seguro que deseas cerrar la aplicación?',
-                        style: TextStyle(color: Colors.white70),
+                      title: Text(l10n.exit, style: const TextStyle(color: Colors.white)),
+                      content: Text(
+                        l10n.confirmExit,
+                        style: const TextStyle(color: Colors.white70),
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancelar'),
+                          child: Text(l10n.cancel),
                         ),
                         TextButton(
                           onPressed: () {
                             Navigator.pop(context);
                           },
                           style: TextButton.styleFrom(foregroundColor: Colors.red),
-                          child: const Text('Salir'),
+                          child: Text(l10n.exit),
                         ),
                       ],
                     ),
                   );
                 }),
-              ],
-            ),
-          ),
-
-          // Main content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(48, 24, 48, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Stats Row
-                  Row(
-                    children: [
-                      _buildStatCard(l10n.channels, _totalChannels, Icons.tv, const Color(0xFF5DD3E5)),
-                      const SizedBox(width: 16),
-                      _buildStatCard(l10n.movies, _totalMovies, Icons.movie, const Color(0xFF4CAF50)),
-                      const SizedBox(width: 16),
-                      _buildStatCard(l10n.series, _totalSeries, Icons.video_library, const Color(0xFFFF9800)),
                     ],
                   ),
+                ),
 
-                  const SizedBox(height: 32),
+                // Main content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: padding,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                  // Stats Row (responsive)
+                  if (isMobile)
+                    Column(
+                      children: [
+                        _buildStatCard(l10n.channels, _totalChannels, Icons.tv, theme.accentPrimary, theme),
+                        const SizedBox(height: 12),
+                        _buildStatCard(l10n.movies, _totalMovies, Icons.movie, const Color(0xFF4CAF50), theme),
+                        const SizedBox(height: 12),
+                        _buildStatCard(l10n.series, _totalSeries, Icons.video_library, const Color(0xFFFF9800), theme),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        _buildStatCard(l10n.channels, _totalChannels, Icons.tv, theme.accentPrimary, theme),
+                        const SizedBox(width: 16),
+                        _buildStatCard(l10n.movies, _totalMovies, Icons.movie, const Color(0xFF4CAF50), theme),
+                        const SizedBox(width: 16),
+                        _buildStatCard(l10n.series, _totalSeries, Icons.video_library, const Color(0xFFFF9800), theme),
+                      ],
+                    ),
 
-                  // Main categories
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMainCard(
-                          l10n.liveTV,
-                          '',
-                          Icons.tv,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const LiveTVScreen(),
-                              ),
-                            );
-                          },
-                          isSelected: true,
-                        ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: _buildMainCard(
-                          l10n.movies,
-                          '',
-                          Icons.play_circle_outline,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ContentGridScreen(
-                                  contentType: ContentType.movie,
-                                  title: l10n.movies,
+                  SizedBox(height: isMobile ? 16 : 32),
+
+                  // Main categories (responsive)
+                  if (isMobile)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMainCard(
+                            l10n.liveTV,
+                            '',
+                            Icons.tv,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => Platform.isAndroid
+                                      ? const MobileLiveTVScreen()
+                                      : const LiveTVScreen(),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                            theme,
+                            isSelected: true,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: _buildMainCard(
-                          l10n.series,
-                          '',
-                          Icons.movie_outlined,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SeriesGridScreen(),
-                              ),
-                            );
-                          },
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildMainCard(
+                            l10n.movies,
+                            '',
+                            Icons.play_circle_outline,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => Platform.isAndroid
+                                      ? const MobileMoviesScreen()
+                                      : ContentGridScreen(
+                                          contentType: ContentType.movie,
+                                          title: l10n.movies,
+                                        ),
+                                ),
+                              );
+                            },
+                            theme,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildMainCard(
+                            l10n.series,
+                            '',
+                            Icons.movie_outlined,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => Platform.isAndroid
+                                      ? const MobileSeriesScreen()
+                                      : const SeriesGridScreen(),
+                                ),
+                              );
+                            },
+                            theme,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMainCard(
+                            l10n.liveTV,
+                            '',
+                            Icons.tv,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const LiveTVScreen(),
+                                ),
+                              );
+                            },
+                            theme,
+                            isSelected: true,
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: _buildMainCard(
+                            l10n.movies,
+                            '',
+                            Icons.play_circle_outline,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ContentGridScreen(
+                                    contentType: ContentType.movie,
+                                    title: l10n.movies,
+                                  ),
+                                ),
+                              );
+                            },
+                            theme,
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: _buildMainCard(
+                            l10n.series,
+                            '',
+                            Icons.movie_outlined,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SeriesGridScreen(),
+                                ),
+                              );
+                            },
+                            theme,
+                          ),
+                        ),
+                      ],
+                    ),
 
-                  const SizedBox(height: 32),
+                  SizedBox(height: isMobile ? 16 : 32),
 
                   // Continue Watching Section
                   if (_recentChannels.isNotEmpty) ...[
                     _buildSectionHeader(l10n.continueWatching, Icons.history),
-                    const SizedBox(height: 16),
+                    SizedBox(height: isMobile ? 12 : 16),
                     SizedBox(
-                      height: 260,
+                      height: Responsive.getHorizontalScrollHeight(context),
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: _recentChannels.length,
@@ -608,9 +723,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Favorites Section
                   if (_favoriteChannels.isNotEmpty) ...[
                     _buildSectionHeader(l10n.myFavorites, Icons.favorite),
-                    const SizedBox(height: 16),
+                    SizedBox(height: isMobile ? 12 : 16),
                     SizedBox(
-                      height: 260,
+                      height: Responsive.getHorizontalScrollHeight(context),
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: _favoriteChannels.length,
@@ -619,14 +734,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    SizedBox(height: isMobile ? 16 : 32),
                   ],
 
-                  // Quick Access
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSecondaryCard(
+                  // Quick Access (responsive)
+                  if (isMobile)
+                    Column(
+                      children: [
+                        _buildSecondaryCard(
                           l10n.playlists,
                           Icons.playlist_play,
                           () {
@@ -639,10 +754,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             );
                           },
                         ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: _buildSecondaryCard(
+                        const SizedBox(height: 16),
+                        _buildSecondaryCard(
                           l10n.configuration,
                           Icons.settings,
                           () {
@@ -654,15 +767,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             );
                           },
                         ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: _buildSecondaryCard(
+                        const SizedBox(height: 16),
+                        _buildSecondaryCard(
                           l10n.epgGuide,
                           Icons.calendar_month,
                           () {
                             Navigator.push(
                               context,
+                              MaterialPageRoute(
+                                builder: (context) => const EpgScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildSecondaryCard(
+                            l10n.playlists,
+                            Icons.playlist_play,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const PlaylistManagerScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildSecondaryCard(
+                            l10n.configuration,
+                            Icons.settings,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SettingsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildSecondaryCard(
+                            l10n.epgGuide,
+                            Icons.calendar_month,
+                            () {
+                              Navigator.push(
+                                context,
                               MaterialPageRoute(
                                 builder: (context) => const EpgScreen(),
                               ),
@@ -680,10 +840,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A3A52).withOpacity(0.3),
+                        color: theme.cardBackground.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: const Color(0xFF2D5F8D).withOpacity(0.2),
+                          color: theme.borderPrimary.withOpacity(0.2),
                           width: 1,
                         ),
                       ),
@@ -708,30 +868,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
                     ),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
-          ),
+                ),
 
-          // Footer
-          Container(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                const Spacer(),
-                Text(
-                  'Versión: 1.0.0',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
-                    fontSize: 14,
+                // Footer
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Row(
+                    children: [
+                      const Spacer(),
+                      Text(
+                        'Versión: 1.0.0',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -799,7 +962,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String title,
     String subtitle,
     IconData icon,
-    VoidCallback onTap, {
+    VoidCallback onTap,
+    AppThemeType theme, {
     bool isSelected = false,
   }) {
     return Material(
@@ -814,18 +978,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF1A3A52).withOpacity(0.6),
-                const Color(0xFF0D2235).withOpacity(0.4),
+                theme.cardBackground.withOpacity(0.6),
+                theme.backgroundPrimary.withOpacity(0.4),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFF2D5F8D).withOpacity(0.3),
+              color: theme.borderPrimary.withOpacity(0.3),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF1A3A52).withOpacity(0.2),
+                color: theme.cardBackground.withOpacity(0.2),
                 blurRadius: 20,
                 spreadRadius: 0,
                 offset: const Offset(0, 8),
@@ -841,8 +1005,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF2D5F8D).withOpacity(0.3),
-                      const Color(0xFF1E3A5F).withOpacity(0.2),
+                      theme.borderPrimary.withOpacity(0.3),
+                      theme.borderPrimary.withOpacity(0.2),
                     ],
                   ),
                 ),
@@ -921,7 +1085,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, int count, IconData icon, Color color) {
+  Widget _buildStatCard(String label, int count, IconData icon, Color color, AppThemeType theme) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -1223,6 +1387,150 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'Diciembre'
     ];
     return '${months[now.month - 1]} ${now.day}, ${now.year}';
+  }
+
+  // Mobile drawer for navigation
+  Widget _buildMobileDrawer(AppLocalizations l10n) {
+    return Drawer(
+      backgroundColor: const Color(0xFF0F2438),
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF1E3A5F),
+                  const Color(0xFF2D5F8D),
+                ],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.tv, color: Colors.white, size: 48),
+                const SizedBox(height: 8),
+                const Text(
+                  'IPTV Player Pro',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (_activeProfile != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _activeProfile!.name,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          _buildDrawerItem(
+            icon: Icons.home,
+            title: l10n.dashboard,
+            onTap: () => Navigator.pop(context),
+          ),
+          _buildDrawerItem(
+            icon: Icons.tv,
+            title: l10n.liveTV,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LiveTVScreen()),
+              );
+            },
+          ),
+          _buildDrawerItem(
+            icon: Icons.movie,
+            title: l10n.movies,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ContentGridScreen(
+                    contentType: ContentType.movie,
+                    title: l10n.movies,
+                  ),
+                ),
+              );
+            },
+          ),
+          _buildDrawerItem(
+            icon: Icons.video_library,
+            title: l10n.series,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SeriesGridScreen()),
+              );
+            },
+          ),
+          const Divider(color: Colors.white24),
+          _buildDrawerItem(
+            icon: Icons.playlist_play,
+            title: l10n.playlists,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PlaylistManagerScreen()),
+              );
+            },
+          ),
+          _buildDrawerItem(
+            icon: Icons.calendar_month,
+            title: l10n.epgGuide,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EpgScreen()),
+              );
+            },
+          ),
+          _buildDrawerItem(
+            icon: Icons.settings,
+            title: l10n.settings,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white70),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+        ),
+      ),
+      onTap: onTap,
+    );
   }
 
   Color _getRatingColor(double rating) {

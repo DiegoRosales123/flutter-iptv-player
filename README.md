@@ -57,9 +57,12 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 
 ### 🎨 Interfaz
 - **Diseño moderno**: Inspirado en TiviMate con Material Design 3
-- **Responsive**: Adaptable a diferentes tamaños de ventana
+- **Totalmente Responsivo**: Adaptable a móviles, tablets y escritorio
 - **Tema oscuro**: Interfaz optimizada para visualización prolongada
-- **Idioma español**: Completamente localizado
+- **Multi-idioma**: Español, Inglés, Chino (简体中文) y Ruso (Русский)
+- **Navegación adaptativa**:
+  - Móvil: Menú lateral (Drawer)
+  - Tablet/Desktop: Barra de navegación completa
 
 ### ⭐ Calificaciones
 - **Calificaciones inteligentes**: Sistema de 3 capas para obtener ratings
@@ -75,6 +78,18 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 - **media_kit**: Reproductor de video basado en libmpv/FFmpeg
 - **Isar**: Base de datos NoSQL local de alta velocidad
 - **Material Design 3**: Diseño moderno y adaptable
+- **Provider**: Gestión de estado reactiva
+
+## 📱 Plataformas Soportadas
+
+| Plataforma | Estado | Notas |
+|------------|--------|-------|
+| 🪟 Windows | ✅ Completo | Soporte completo con ventana nativa |
+| 🤖 Android | ✅ Completo | Diseño responsivo adaptativo |
+| 🍎 iOS | ✅ Completo | Compatible (requiere Mac para compilar) |
+| 🌐 Web | ⚠️ Limitado | Algunas limitaciones en reproducción de video |
+| 🐧 Linux | ✅ Completo | Soporte nativo |
+| 🍎 macOS | ✅ Completo | Compatible (requiere Mac para compilar) |
 
 ## 📋 Requisitos Previos
 
@@ -83,6 +98,11 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 - **Modo Desarrollador activado** (requerido para compilar)
   - Ejecuta: `start ms-settings:developers`
   - Activa "Modo de desarrollador"
+
+### 🤖 Android
+- Android 5.0 (API 21) o superior
+- Mínimo 2 GB de RAM recomendado
+- Ver [Guía de Compilación para Android](ANDROID_BUILD.md)
 
 ### 🔧 Herramientas de Desarrollo
 
@@ -119,6 +139,8 @@ flutter pub run build_runner build --delete-conflicting-outputs
 
 ### 4️⃣ Ejecutar la aplicación
 
+#### 🪟 Windows
+
 **Modo desarrollo:**
 ```bash
 flutter run -d windows
@@ -130,6 +152,22 @@ flutter build windows --release
 ```
 
 El ejecutable estará en: `build\windows\x64\runner\Release\iptv_player.exe`
+
+#### 🤖 Android
+
+**Modo desarrollo (conecta tu dispositivo o inicia un emulador):**
+```bash
+flutter run
+```
+
+**Compilar APK:**
+```bash
+flutter build apk --release
+```
+
+El APK estará en: `build\app\outputs\flutter-apk\app-release.apk`
+
+**Para más detalles, consulta la [Guía de Compilación para Android](ANDROID_BUILD.md)**
 
 ### 5️⃣ Configurar APIs (Opcional - para obtener calificaciones reales)
 

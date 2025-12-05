@@ -21,6 +21,9 @@ dependencies:
   media_kit: ^1.1.10
   media_kit_video: ^1.2.4
   media_kit_libs_video: ^1.0.4
+  better_player: ^0.0.83
+  video_player: ^2.8.2
+  chewie: ^1.7.5
 
   # Database
   isar: ^3.1.0+1
@@ -45,6 +48,7 @@ dependencies:
   url_launcher: ^6.2.2
   share_plus: ^7.2.1
   wakelock_plus: ^1.1.4
+  package_info_plus: 8.0.2
 
   # Icons
   flutter_svg: ^2.0.9

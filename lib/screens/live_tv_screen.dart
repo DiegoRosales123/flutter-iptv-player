@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../models/channel.dart';
 import '../services/database_service.dart';
 import '../services/m3u_parser.dart';
+import '../providers/theme_provider.dart';
 
 class LiveTVScreen extends StatefulWidget {
   const LiveTVScreen({Key? key}) : super(key: key);
@@ -107,25 +109,28 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = ['All', ..._groupedChannels.keys];
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final theme = themeProvider.currentTheme;
+        final categories = ['All', ..._groupedChannels.keys];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F1E2B),
-      body: Row(
-        children: [
-          // Left Sidebar - Categories
-          if (!_isFullscreen)
-            Container(
+        return Scaffold(
+          backgroundColor: theme.backgroundPrimary,
+          body: Row(
+            children: [
+              // Left Sidebar - Categories
+              if (!_isFullscreen)
+                Container(
               width: 220,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A2B3C),
-              border: Border(
-                right: BorderSide(
-                  color: Colors.white.withOpacity(0.1),
-                  width: 1,
+              decoration: BoxDecoration(
+                color: theme.sidebarBackground,
+                border: Border(
+                  right: BorderSide(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
                 ),
               ),
-            ),
             child: Column(
               children: [
                 // Header
@@ -179,7 +184,7 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                       hintStyle: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
                       prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5), size: 18),
                       filled: true,
-                      fillColor: const Color(0xFF0F1E2B),
+                      fillColor: theme.backgroundTertiary,
                       contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -209,7 +214,7 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
 
                       return Material(
                         color: isSelected
-                            ? const Color(0xFF2D4A5E)
+                            ? theme.cardBackgroundLight
                             : Colors.transparent,
                         child: InkWell(
                           onTap: () {
@@ -231,7 +236,7 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                                     category,
                                     style: TextStyle(
                                       color: isSelected
-                                          ? const Color(0xFF5DD3E5)
+                                          ? theme.accentPrimary
                                           : Colors.white,
                                       fontSize: 13,
                                       fontWeight: isSelected
@@ -245,7 +250,7 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                                   count.toString(),
                                   style: TextStyle(
                                     color: isSelected
-                                        ? const Color(0xFF5DD3E5)
+                                        ? theme.accentPrimary
                                         : Colors.white54,
                                     fontSize: 12,
                                   ),
@@ -260,14 +265,14 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                 ),
               ],
             ),
-          ),
+                ),
 
-          // Middle - Channel list
-          if (!_isFullscreen)
-            Container(
+              // Middle - Channel list
+              if (!_isFullscreen)
+                Container(
               width: 380,
             decoration: BoxDecoration(
-              color: const Color(0xFF0F1E2B),
+              color: theme.backgroundTertiary,
               border: Border(
                 right: BorderSide(
                   color: Colors.white.withOpacity(0.1),
@@ -281,7 +286,7 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A2B3C),
+                    color: theme.sidebarBackground,
                     border: Border(
                       bottom: BorderSide(
                         color: Colors.white.withOpacity(0.1),
@@ -295,7 +300,7 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2D4A5E),
+                            color: theme.cardBackgroundLight,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: TextField(
@@ -354,7 +359,7 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
 
                       return Material(
                         color: isSelected
-                            ? const Color(0xFF2D4A5E)
+                            ? theme.cardBackgroundLight
                             : Colors.transparent,
                         child: InkWell(
                           onTap: () => _playChannel(channel),
@@ -372,8 +377,8 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? const Color(0xFF5DD3E5)
-                                        : const Color(0xFF1A2B3C),
+                                        ? theme.accentPrimary
+                                        : theme.sidebarBackground,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -422,7 +427,7 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                                         channel.name,
                                         style: TextStyle(
                                           color: isSelected
-                                              ? const Color(0xFF5DD3E5)
+                                              ? theme.accentPrimary
                                               : Colors.white,
                                           fontSize: 13,
                                           fontWeight: isSelected
@@ -455,10 +460,10 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                 ),
               ],
             ),
-          ),
+                ),
 
-          // Right side - Video Player
-          Expanded(
+              // Right side - Video Player
+              Expanded(
             child: Container(
               color: Colors.black,
               child: _selectedChannel == null
@@ -636,16 +641,18 @@ class _LiveTVScreenState extends State<LiveTVScreen> {
                                 )
                               : Center(
                                   child: CircularProgressIndicator(
-                                    color: const Color(0xFF5DD3E5),
+                                    color: theme.accentPrimary,
                                   ),
                                 ),
                         ),
                       ],
                     ),
             ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
