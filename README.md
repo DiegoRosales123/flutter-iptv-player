@@ -16,14 +16,12 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 </div>
 
 <div align="center">
-  <img src="imagenes/tendencias_peliculas.png" alt="Tendencias Peliculas Tipo Netflix" width="45%">
   <img src="imagenes/Series-categorias.png" alt="Series por Categorías" width="45%">
   <img src="imagenes/Detalle-Peliculas.png" alt="Detalle de Película" width="45%">
 </div>
 
 ### Detalle de Series y Reproductor
 <div align="center">
-  <img src="imagenes/TENDENCIAS_SERIES.png" alt="Tendencias Series Tipo Netflix" width="45%">
   <img src="imagenes/Detalle_series.png" alt="Detalle de Serie con Episodios" width="45%">
   <img src="imagenes/Reproductor-peliculas.png" alt="Reproductor de Video" width="45%">
 </div>
