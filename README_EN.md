@@ -8,20 +8,41 @@ A professional IPTV playback application built with Flutter, inspired by TiviMat
 
 ## 📸 Screenshots
 
-### Main Navigation
+### 🎨 Theme System
 <div align="center">
-  <img src="imagenes/tv-envivo.png" alt="Live TV" width="45%">
-  <img src="imagenes/peliculas-categorias.png" alt="Movies by Category" width="45%">
+  <img src="imagenes/SELECCION_TEMAS.png" alt="Theme Selector" width="45%">
+  <img src="imagenes/TEMA_NETFLIX.png" alt="Netflix Theme - Dashboard" width="45%">
+</div>
+
+### 🎬 Movies - Original and Netflix Themes
+<div align="center">
+  <img src="imagenes/peliculas-categorias.png" alt="Movies by Category - Original Theme" width="45%">
+  <img src="imagenes/PELICULAS_TEMA_NETFLIX.png" alt="Movies - Netflix Theme" width="45%">
 </div>
 
 <div align="center">
-  <img src="imagenes/Series-categorias.png" alt="Series by Category" width="45%">
+  <img src="imagenes/tendencias_peliculas.png" alt="Trending Movies" width="45%">
   <img src="imagenes/Detalle-Peliculas.png" alt="Movie Details" width="45%">
 </div>
 
-### Series Details and Video Player
+### 📺 Series - Original and Netflix Themes
 <div align="center">
+  <img src="imagenes/Series-categorias.png" alt="Series by Category - Original Theme" width="45%">
+  <img src="imagenes/series_tema__netflix.png" alt="Series - Netflix Theme" width="45%">
+</div>
+
+<div align="center">
+  <img src="imagenes/TENDENCIAS_SERIES.png" alt="Trending Series" width="45%">
   <img src="imagenes/Detalle_series.png" alt="Series Details with Episodes" width="45%">
+</div>
+
+### 📡 Live TV and Video Player
+<div align="center">
+  <img src="imagenes/tv-envivo.png" alt="Live TV - Original Theme" width="45%">
+  <img src="imagenes/TV_ENVIVO_TEMA_NETFLIX.png" alt="Live TV - Netflix Theme" width="45%">
+</div>
+
+<div align="center">
   <img src="imagenes/Reproductor-peliculas.png" alt="Video Player" width="45%">
 </div>
 
@@ -56,10 +77,16 @@ A professional IPTV playback application built with Flutter, inspired by TiviMat
 - **Offline access**: Access your history and favorites offline
 
 ### 🎨 Interface
-- **Modern design**: Inspired by TiviMate with Material Design 3
-- **Responsive**: Adapts to different window sizes
-- **Dark theme**: Interface optimized for extended viewing
-- **Spanish language**: Fully localized
+- **Dynamic Theme System**: Switch between multiple themes instantly
+  - **Original Theme**: Cyan/blue design inspired by TiviMate
+  - **Netflix Theme**: Netflix-style with red/dark colors
+  - Automatically saved preferences
+- **Modern design**: Material Design 3 with Netflix-style layouts
+- **Fully Responsive**: Adapts to mobile, tablet, and desktop
+- **Multi-language**: Spanish, English, Chinese (简体中文), and Russian (Русский)
+- **Adaptive Navigation**:
+  - Mobile: Side menu (Drawer)
+  - Tablet/Desktop: Full navigation bar
 
 ### ⭐ Ratings
 - **Smart ratings**: 3-tier system for obtaining ratings
@@ -256,13 +283,12 @@ lib/
 - [x] Subtitle support
 - [x] Xtream Codes API integration
 - [x] Lazy loading for series episodes
+- [x] Customizable themes (Original and Netflix)
 - [ ] Channel recording
 - [ ] Timeshift (pause live TV)
 - [ ] Picture-in-Picture mode
 - [ ] Parental controls
-- [ ] Customizable themes
 - [ ] Cloud sync
-- [ ] Multi-channel audio
 
 ## 🔐 Security and Privacy
 

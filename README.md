@@ -8,28 +8,42 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 
 ## 📸 Capturas de Pantalla
 
-### Navegación Principal
+### 🎨 Sistema de Temas
 <div align="center">
-  <img src="imagenes/tv-envivo.png" alt="TV en Vivo" width="45%">
-  <img src="imagenes/peliculas-categorias.png" alt="Películas por Categorías" width="45%">
-  <img src="imagenes/SELECCION_TEMAS.png" alt="Temas Dashboard" width="45%">
+  <img src="imagenes/SELECCION_TEMAS.png" alt="Selector de Temas" width="45%">
+  <img src="imagenes/TEMA_NETFLIX.png" alt="Tema Netflix - Dashboard" width="45%">
+</div>
+
+### 🎬 Películas - Tema Original y Netflix
+<div align="center">
+  <img src="imagenes/peliculas-categorias.png" alt="Películas por Categorías - Tema Original" width="45%">
+  <img src="imagenes/PELICULAS_TEMA_NETFLIX.png" alt="Películas - Tema Netflix" width="45%">
 </div>
 
 <div align="center">
-  <img src="imagenes/Series-categorias.png" alt="Series por Categorías" width="45%">
+  <img src="imagenes/tendencias_peliculas.png" alt="Tendencias de Películas" width="45%">
+  <img src="imagenes/Detalle-Peliculas.png" alt="Detalle de Película" width="45%">
 </div>
 
-### Detalle de Series y Reproductor
+### 📺 Series - Tema Original y Netflix
 <div align="center">
-  <img src="imagenes/Reproductor-peliculas.png" alt="Reproductor de Video" width="45%">
+  <img src="imagenes/Series-categorias.png" alt="Series por Categorías - Tema Original" width="45%">
+  <img src="imagenes/series_tema__netflix.png" alt="Series - Tema Netflix" width="45%">
+</div>
+
+<div align="center">
+  <img src="imagenes/TENDENCIAS_SERIES.png" alt="Tendencias de Series" width="45%">
   <img src="imagenes/Detalle_series.png" alt="Detalle de Serie con Episodios" width="45%">
 </div>
 
-### TEMA NETFLIX
+### 📡 TV en Vivo y Reproductor
 <div align="center">
-  <img src="imagenes/TEMA_NETFLIX.png" alt="Dashboard Tipo Netflix" width="45%">
-  <img src="imagenes/PELICULAS_TEMA_NETFLIX.png" alt="Peliculas Tipo Netflix" width="45%">
-  <img src="imagenes/series_tema__netflix.png" alt="Series Tipo Netflix Tema" width="45%">
+  <img src="imagenes/tv-envivo.png" alt="TV en Vivo - Tema Original" width="45%">
+  <img src="imagenes/TV_ENVIVO_TEMA_NETFLIX.png" alt="TV en Vivo - Tema Netflix" width="45%">
+</div>
+
+<div align="center">
+  <img src="imagenes/Reproductor-peliculas.png" alt="Reproductor de Video" width="45%">
 </div>
 
 ## ✨ Características
@@ -63,9 +77,12 @@ Una aplicación profesional de reproducción IPTV construida con Flutter, inspir
 - **Sin conexión**: Accede a tu historial y favoritos offline
 
 ### 🎨 Interfaz
-- **Diseño moderno**: Inspirado en TiviMate con Material Design 3
+- **Sistema de Temas Dinámicos**: Cambia entre múltiples temas al instante
+  - **Tema Original**: Diseño cyan/azul inspirado en TiviMate
+  - **Tema Netflix**: Estilo Netflix con colores rojo/oscuro
+  - Personalización guardada automáticamente
+- **Diseño moderno**: Material Design 3 con layouts estilo Netflix
 - **Totalmente Responsivo**: Adaptable a móviles, tablets y escritorio
-- **Tema oscuro**: Interfaz optimizada para visualización prolongada
 - **Multi-idioma**: Español, Inglés, Chino (简体中文) y Ruso (Русский)
 - **Navegación adaptativa**:
   - Móvil: Menú lateral (Drawer)
@@ -295,14 +312,14 @@ lib/
 
 - [x] Sistema de perfiles de usuario con UI
 - [x] EPG (Guía electrónica de programación)
+- [x] Temas personalizables (Original y Netflix)
+- [x] Soporte para subtítulos
+- [x] Audio multicanal
 - [ ] Grabación de canales
 - [ ] Timeshift (pausa en vivo)
 - [ ] Modo Picture-in-Picture
 - [ ] Controles parentales
-- [ ] Temas personalizables
 - [ ] Sincronización en la nube
-- [x] Soporte para subtítulos
-- [x] Audio multicanal
 
 ## 🔐 Seguridad y Privacidad
 
