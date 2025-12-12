@@ -10,6 +10,7 @@ import '../services/tmdb_service.dart';
 import '../providers/content_provider.dart';
 import '../providers/theme_provider.dart';
 import '../utils/app_theme.dart';
+import '../l10n/app_localizations.dart';
 import 'series_detail_screen.dart';
 
 class SeriesGridScreen extends StatefulWidget {
@@ -245,6 +246,7 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         final theme = themeProvider.currentTheme;
+        final l10n = AppLocalizations.of(context);
 
         if (_isLoading) {
           return Scaffold(
@@ -520,8 +522,8 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
                 // Main content area
                 Expanded(
                   child: _selectedCategory == null && _searchQuery.isEmpty
-                      ? _buildNetflixHomeView(theme)
-                      : _buildFilteredGridView(theme),
+                      ? _buildNetflixHomeView(theme, l10n)
+                      : _buildFilteredGridView(theme, l10n),
                 ),
               ],
             ),
@@ -533,35 +535,35 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
     );
   }
 
-  Widget _buildNetflixHomeView(AppThemeType theme) {
+  Widget _buildNetflixHomeView(AppThemeType theme, AppLocalizations l10n) {
     return CustomScrollView(
       controller: _scrollController,
       slivers: [
         // Hero Banner
         SliverToBoxAdapter(
-          child: _buildHeroBanner(theme),
+          child: _buildHeroBanner(theme, l10n),
         ),
 
         // Trending Section
         if (_trendingSeries.isNotEmpty) ...[
           _buildSectionHeader('En Tendencia', Icons.whatshot, theme),
-          _buildHorizontalCarousel(_trendingSeries, theme, isLarge: true, showRank: true),
+          _buildHorizontalCarousel(_trendingSeries, theme, l10n, isLarge: true, showRank: true),
         ],
 
         // Recently Watched
         if (_recentSeries.isNotEmpty) ...[
           _buildSectionHeader('Continuar Viendo', Icons.history, theme),
-          _buildHorizontalCarousel(_recentSeries, theme, showProgress: true),
+          _buildHorizontalCarousel(_recentSeries, theme, l10n, showProgress: true),
         ],
 
         // Favorites
         if (_favoriteSeries.isNotEmpty) ...[
           _buildSectionHeader('Mi Lista', Icons.favorite, theme),
-          _buildHorizontalCarousel(_favoriteSeries, theme),
+          _buildHorizontalCarousel(_favoriteSeries, theme, l10n),
         ],
 
         // Category carousels
-        ..._buildCategoryCarousels(theme),
+        ..._buildCategoryCarousels(theme, l10n),
 
         // Bottom padding
         const SliverToBoxAdapter(
@@ -571,7 +573,7 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
     );
   }
 
-  Widget _buildHeroBanner(AppThemeType theme) {
+  Widget _buildHeroBanner(AppThemeType theme, AppLocalizations l10n) {
     if (_featuredSeries == null) {
       return const SizedBox(height: 80);
     }
@@ -741,7 +743,7 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          '${_featuredSeries!.seasons.length} temporada${_featuredSeries!.seasons.length > 1 ? 's' : ''}',
+                          '${_featuredSeries!.seasons.length} ${_featuredSeries!.seasons.length > 1 ? l10n.seasons : l10n.season}',
                           style: TextStyle(
                             color: theme.accentPrimary.withOpacity(0.9),
                             fontSize: 12,
@@ -896,7 +898,8 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
 
   SliverToBoxAdapter _buildHorizontalCarousel(
     List<Series> items,
-    AppThemeType theme, {
+    AppThemeType theme,
+    AppLocalizations l10n, {
     bool isLarge = false,
     bool showProgress = false,
     bool showRank = false,
@@ -915,6 +918,7 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
             return _buildNetflixCard(
               items[index],
               theme,
+              l10n,
               width: cardWidth,
               isLarge: isLarge,
               showProgress: showProgress,
@@ -928,7 +932,8 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
 
   Widget _buildNetflixCard(
     Series series,
-    AppThemeType theme, {
+    AppThemeType theme,
+    AppLocalizations l10n, {
     required double width,
     bool isLarge = false,
     bool showProgress = false,
@@ -1083,7 +1088,7 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
                           if (series.seasons.isNotEmpty) ...[
                             const SizedBox(height: 3),
                             Text(
-                              '${series.seasons.length} temporada${series.seasons.length > 1 ? 's' : ''}',
+                              '${series.seasons.length} ${series.seasons.length > 1 ? l10n.seasons : l10n.season}',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.5),
                                 fontSize: 10,
@@ -1141,7 +1146,7 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
     );
   }
 
-  List<Widget> _buildCategoryCarousels(AppThemeType theme) {
+  List<Widget> _buildCategoryCarousels(AppThemeType theme, AppLocalizations l10n) {
     final List<Widget> sections = [];
     final sortedCategories = _categorizedSeries.keys.toList()
       ..sort((a, b) => (_categorizedSeries[b]?.length ?? 0)
@@ -1152,14 +1157,14 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
       final items = _categorizedSeries[category] ?? [];
       if (items.isNotEmpty) {
         sections.add(_buildSectionHeader(category, Icons.category, theme));
-        sections.add(_buildHorizontalCarousel(items.take(20).toList(), theme));
+        sections.add(_buildHorizontalCarousel(items.take(20).toList(), theme, l10n));
       }
     }
 
     return sections;
   }
 
-  Widget _buildFilteredGridView(AppThemeType theme) {
+  Widget _buildFilteredGridView(AppThemeType theme, AppLocalizations l10n) {
     return GridView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(24),
@@ -1174,6 +1179,7 @@ class _SeriesGridScreenState extends State<SeriesGridScreen> {
         return _buildNetflixCard(
           _filteredSeries[index],
           theme,
+          l10n,
           width: 160,
         );
       },

@@ -95,6 +95,11 @@ class AppLocalizations {
       'username': 'Usuario',
       'password': 'Contraseña',
       'server_url': 'URL del Servidor',
+      'playlist_management': 'Gestión de Playlists',
+      'new_playlist': 'Nueva Playlist',
+      'no_playlists': 'Sin playlists',
+      'add_first_playlist': 'Agrega tu primera playlist IPTV\npara comenzar a ver contenido',
+      'help': 'Ayuda',
 
       // Messages
       'no_channels': 'No hay canales disponibles',
@@ -130,6 +135,72 @@ class AppLocalizations {
       'theme_netflix_desc': 'Tema oscuro estilo Netflix',
       'theme_applied': 'Tema aplicado',
       'close': 'Cerrar',
+
+      // Series
+      'season': 'temporada',
+      'seasons': 'temporadas',
+
+      // Playlist Dialog
+      'add_new_playlist_subtitle': 'Agrega una nueva playlist IPTV',
+      'modify_playlist_subtitle': 'Modifica los datos de tu playlist',
+      'playlist_name_label': 'Nombre de la playlist',
+      'playlist_name_hint': 'Mi IPTV',
+      'playlist_name_validation': 'Ingresa un nombre',
+      'playlist_url_label': 'URL de la playlist',
+      'playlist_url_hint': 'https://ejemplo.com/playlist.m3u',
+      'playlist_url_validation': 'Ingresa la URL',
+      'url_validation_protocol': 'La URL debe comenzar con http:// o https://',
+      'server_host_label': 'Host del servidor',
+      'server_host_hint': 'http://servidor.com:8080',
+      'server_host_validation': 'Ingresa el host',
+      'protocol_validation': 'Debe comenzar con http:// o https://',
+      'username_label': 'Usuario',
+      'username_hint': 'miusuario',
+      'username_validation': 'Ingresa el usuario',
+      'password_label': 'Contraseña',
+      'password_hint': 'Tu contraseña',
+      'password_validation': 'Ingresa la contraseña',
+      'verify_credentials': 'Verificar credenciales',
+      'verifying': 'Verificando...',
+      'complete_all_fields': 'Completa todos los campos',
+      'credentials_verified': 'Credenciales verificadas',
+      'credentials_invalid': 'Credenciales inválidas',
+      'add': 'Agregar',
+      'save': 'Guardar',
+
+      // Help Dialog
+      'supported_formats': 'Formatos soportados:',
+      'supported_formats_desc': 'M3U, M3U8, Xtream Codes API',
+      'xtream_url': 'URL Xtream:',
+      'xtream_url_desc': 'El sistema detecta automáticamente credenciales y carga el EPG',
+      'epg': 'EPG:',
+      'epg_desc': 'La guía de programación se carga automáticamente si está disponible',
+      'update': 'Actualizar:',
+      'update_desc': 'Usa el botón de refresh para recargar los canales',
+      'understood': 'Entendido',
+
+      // Loading Dialog
+      'loading_playlist': 'Cargando playlist...',
+      'updating_playlist': 'Actualizando playlist...',
+      'downloading_channels': 'Descargando y procesando canales...',
+
+      // Date
+      'never': 'Nunca',
+
+      // Playlist Info Dialog
+      'information': 'Información',
+      'name': 'Nombre',
+      'channels_count': 'Canales',
+      'updated': 'Actualizado',
+      'authentication': 'Autenticación',
+      'yes': 'Sí',
+      'no': 'No',
+      'url': 'URL:',
+      'authenticated': 'Autenticado',
+      'active': 'Activa',
+      'refresh': 'Actualizar',
+      'more_options': 'Más opciones',
+      'channels': 'canales',
     },
     'en_US': {
       // General
@@ -202,6 +273,11 @@ class AppLocalizations {
       'username': 'Username',
       'password': 'Password',
       'server_url': 'Server URL',
+      'playlist_management': 'Playlist Management',
+      'new_playlist': 'New Playlist',
+      'no_playlists': 'No playlists',
+      'add_first_playlist': 'Add your first IPTV playlist\nto start watching content',
+      'help': 'Help',
 
       // Messages
       'no_channels': 'No channels available',
@@ -237,6 +313,72 @@ class AppLocalizations {
       'theme_netflix_desc': 'Netflix-style dark theme',
       'theme_applied': 'Theme applied',
       'close': 'Close',
+
+      // Series
+      'season': 'season',
+      'seasons': 'seasons',
+
+      // Playlist Dialog
+      'add_new_playlist_subtitle': 'Add a new IPTV playlist',
+      'modify_playlist_subtitle': 'Modify your playlist data',
+      'playlist_name_label': 'Playlist name',
+      'playlist_name_hint': 'My IPTV',
+      'playlist_name_validation': 'Enter a name',
+      'playlist_url_label': 'Playlist URL',
+      'playlist_url_hint': 'https://example.com/playlist.m3u',
+      'playlist_url_validation': 'Enter the URL',
+      'url_validation_protocol': 'URL must start with http:// or https://',
+      'server_host_label': 'Server host',
+      'server_host_hint': 'http://server.com:8080',
+      'server_host_validation': 'Enter the host',
+      'protocol_validation': 'Must start with http:// or https://',
+      'username_label': 'Username',
+      'username_hint': 'myusername',
+      'username_validation': 'Enter username',
+      'password_label': 'Password',
+      'password_hint': 'Your password',
+      'password_validation': 'Enter password',
+      'verify_credentials': 'Verify credentials',
+      'verifying': 'Verifying...',
+      'complete_all_fields': 'Complete all fields',
+      'credentials_verified': 'Credentials verified',
+      'credentials_invalid': 'Invalid credentials',
+      'add': 'Add',
+      'save': 'Save',
+
+      // Help Dialog
+      'supported_formats': 'Supported formats:',
+      'supported_formats_desc': 'M3U, M3U8, Xtream Codes API',
+      'xtream_url': 'Xtream URL:',
+      'xtream_url_desc': 'System automatically detects credentials and loads EPG',
+      'epg': 'EPG:',
+      'epg_desc': 'Program guide loads automatically if available',
+      'update': 'Update:',
+      'update_desc': 'Use the refresh button to reload channels',
+      'understood': 'Understood',
+
+      // Loading Dialog
+      'loading_playlist': 'Loading playlist...',
+      'updating_playlist': 'Updating playlist...',
+      'downloading_channels': 'Downloading and processing channels...',
+
+      // Date
+      'never': 'Never',
+
+      // Playlist Info Dialog
+      'information': 'Information',
+      'name': 'Name',
+      'channels_count': 'Channels',
+      'updated': 'Updated',
+      'authentication': 'Authentication',
+      'yes': 'Yes',
+      'no': 'No',
+      'url': 'URL:',
+      'authenticated': 'Authenticated',
+      'active': 'Active',
+      'refresh': 'Refresh',
+      'more_options': 'More options',
+      'channels': 'channels',
     },
     'zh_CN': {
       // General
@@ -309,6 +451,11 @@ class AppLocalizations {
       'username': '用户名',
       'password': '密码',
       'server_url': '服务器网址',
+      'playlist_management': '播放列表管理',
+      'new_playlist': '新播放列表',
+      'no_playlists': '没有播放列表',
+      'add_first_playlist': '添加您的第一个IPTV播放列表\n开始观看内容',
+      'help': '帮助',
 
       // Messages
       'no_channels': '没有可用频道',
@@ -344,6 +491,72 @@ class AppLocalizations {
       'theme_netflix_desc': 'Netflix风格的暗色主题',
       'theme_applied': '主题已应用',
       'close': '关闭',
+
+      // Series
+      'season': '季',
+      'seasons': '季',
+
+      // Playlist Dialog
+      'add_new_playlist_subtitle': '添加新的IPTV播放列表',
+      'modify_playlist_subtitle': '修改您的播放列表数据',
+      'playlist_name_label': '播放列表名称',
+      'playlist_name_hint': '我的IPTV',
+      'playlist_name_validation': '请输入名称',
+      'playlist_url_label': '播放列表网址',
+      'playlist_url_hint': 'https://example.com/playlist.m3u',
+      'playlist_url_validation': '请输入网址',
+      'url_validation_protocol': '网址必须以http://或https://开头',
+      'server_host_label': '服务器主机',
+      'server_host_hint': 'http://server.com:8080',
+      'server_host_validation': '请输入主机',
+      'protocol_validation': '必须以http://或https://开头',
+      'username_label': '用户名',
+      'username_hint': '我的用户名',
+      'username_validation': '请输入用户名',
+      'password_label': '密码',
+      'password_hint': '您的密码',
+      'password_validation': '请输入密码',
+      'verify_credentials': '验证凭据',
+      'verifying': '验证中...',
+      'complete_all_fields': '请填写所有字段',
+      'credentials_verified': '凭据已验证',
+      'credentials_invalid': '凭据无效',
+      'add': '添加',
+      'save': '保存',
+
+      // Help Dialog
+      'supported_formats': '支持的格式：',
+      'supported_formats_desc': 'M3U、M3U8、Xtream Codes API',
+      'xtream_url': 'Xtream网址：',
+      'xtream_url_desc': '系统自动检测凭据并加载EPG',
+      'epg': 'EPG：',
+      'epg_desc': '如果可用，节目指南会自动加载',
+      'update': '更新：',
+      'update_desc': '使用刷新按钮重新加载频道',
+      'understood': '明白了',
+
+      // Loading Dialog
+      'loading_playlist': '加载播放列表中...',
+      'updating_playlist': '更新播放列表中...',
+      'downloading_channels': '正在下载和处理频道...',
+
+      // Date
+      'never': '从未',
+
+      // Playlist Info Dialog
+      'information': '信息',
+      'name': '名称',
+      'channels_count': '频道',
+      'updated': '更新时间',
+      'authentication': '认证',
+      'yes': '是',
+      'no': '否',
+      'url': '网址：',
+      'authenticated': '已认证',
+      'active': '活动',
+      'refresh': '刷新',
+      'more_options': '更多选项',
+      'channels': '频道',
     },
     'ru_RU': {
       // General
@@ -416,6 +629,11 @@ class AppLocalizations {
       'username': 'Имя пользователя',
       'password': 'Пароль',
       'server_url': 'URL сервера',
+      'playlist_management': 'Управление плейлистами',
+      'new_playlist': 'Новый плейлист',
+      'no_playlists': 'Нет плейлистов',
+      'add_first_playlist': 'Добавьте свой первый IPTV плейлист\nчтобы начать просмотр',
+      'help': 'Помощь',
 
       // Messages
       'no_channels': 'Нет доступных каналов',
@@ -451,12 +669,95 @@ class AppLocalizations {
       'theme_netflix_desc': 'Темная тема в стиле Netflix',
       'theme_applied': 'Тема применена',
       'close': 'Закрыть',
+
+      // Series
+      'season': 'сезон',
+      'seasons': 'сезона',
+
+      // Playlist Dialog
+      'add_new_playlist_subtitle': 'Добавить новый IPTV плейлист',
+      'modify_playlist_subtitle': 'Изменить данные плейлиста',
+      'playlist_name_label': 'Название плейлиста',
+      'playlist_name_hint': 'Мой IPTV',
+      'playlist_name_validation': 'Введите название',
+      'playlist_url_label': 'URL плейлиста',
+      'playlist_url_hint': 'https://example.com/playlist.m3u',
+      'playlist_url_validation': 'Введите URL',
+      'url_validation_protocol': 'URL должен начинаться с http:// или https://',
+      'server_host_label': 'Хост сервера',
+      'server_host_hint': 'http://server.com:8080',
+      'server_host_validation': 'Введите хост',
+      'protocol_validation': 'Должен начинаться с http:// или https://',
+      'username_label': 'Имя пользователя',
+      'username_hint': 'моеимя',
+      'username_validation': 'Введите имя пользователя',
+      'password_label': 'Пароль',
+      'password_hint': 'Ваш пароль',
+      'password_validation': 'Введите пароль',
+      'verify_credentials': 'Проверить учетные данные',
+      'verifying': 'Проверка...',
+      'complete_all_fields': 'Заполните все поля',
+      'credentials_verified': 'Учетные данные проверены',
+      'credentials_invalid': 'Неверные учетные данные',
+      'add': 'Добавить',
+      'save': 'Сохранить',
+
+      // Help Dialog
+      'supported_formats': 'Поддерживаемые форматы:',
+      'supported_formats_desc': 'M3U, M3U8, Xtream Codes API',
+      'xtream_url': 'URL Xtream:',
+      'xtream_url_desc': 'Система автоматически определяет учетные данные и загружает EPG',
+      'epg': 'EPG:',
+      'epg_desc': 'Программа передач загружается автоматически, если доступна',
+      'update': 'Обновить:',
+      'update_desc': 'Используйте кнопку обновления для перезагрузки каналов',
+      'understood': 'Понятно',
+
+      // Loading Dialog
+      'loading_playlist': 'Загрузка плейлиста...',
+      'updating_playlist': 'Обновление плейлиста...',
+      'downloading_channels': 'Загрузка и обработка каналов...',
+
+      // Date
+      'never': 'Никогда',
+
+      // Playlist Info Dialog
+      'information': 'Информация',
+      'name': 'Название',
+      'channels_count': 'Каналы',
+      'updated': 'Обновлено',
+      'authentication': 'Аутентификация',
+      'yes': 'Да',
+      'no': 'Нет',
+      'url': 'URL:',
+      'authenticated': 'Аутентифицирован',
+      'active': 'Активный',
+      'refresh': 'Обновить',
+      'more_options': 'Дополнительные параметры',
+      'channels': 'каналы',
     },
   };
 
   String translate(String key) {
-    final String languageCode = '${locale.languageCode}_${locale.countryCode}';
-    return _localizedValues[languageCode]?[key] ?? key;
+    // Try with full locale (e.g., 'en_US')
+    String languageCode = '${locale.languageCode}_${locale.countryCode}';
+    String? value = _localizedValues[languageCode]?[key];
+
+    // If not found, try with just language code + default country
+    if (value == null) {
+      final Map<String, String> defaultCountries = {
+        'en': 'en_US',
+        'es': 'es_ES',
+        'zh': 'zh_CN',
+        'ru': 'ru_RU',
+      };
+      final defaultLocale = defaultCountries[locale.languageCode];
+      if (defaultLocale != null) {
+        value = _localizedValues[defaultLocale]?[key];
+      }
+    }
+
+    return value ?? key;
   }
 
   // Getters for common translations
@@ -553,6 +854,73 @@ class AppLocalizations {
   String get themeNetflixDesc => translate('theme_netflix_desc');
   String get themeApplied => translate('theme_applied');
   String get close => translate('close');
+
+  String get season => translate('season');
+  String get seasons => translate('seasons');
+
+  String get playlistManagement => translate('playlist_management');
+  String get newPlaylist => translate('new_playlist');
+  String get noPlaylists => translate('no_playlists');
+  String get addFirstPlaylist => translate('add_first_playlist');
+  String get help => translate('help');
+
+  // Playlist Dialog
+  String get addNewPlaylistSubtitle => translate('add_new_playlist_subtitle');
+  String get modifyPlaylistSubtitle => translate('modify_playlist_subtitle');
+  String get playlistNameLabel => translate('playlist_name_label');
+  String get playlistNameHint => translate('playlist_name_hint');
+  String get playlistNameValidation => translate('playlist_name_validation');
+  String get playlistUrlLabel => translate('playlist_url_label');
+  String get playlistUrlHint => translate('playlist_url_hint');
+  String get playlistUrlValidation => translate('playlist_url_validation');
+  String get urlValidationProtocol => translate('url_validation_protocol');
+  String get serverHostLabel => translate('server_host_label');
+  String get serverHostHint => translate('server_host_hint');
+  String get serverHostValidation => translate('server_host_validation');
+  String get protocolValidation => translate('protocol_validation');
+  String get usernameLabel => translate('username_label');
+  String get usernameHint => translate('username_hint');
+  String get usernameValidation => translate('username_validation');
+  String get passwordLabel => translate('password_label');
+  String get passwordHint => translate('password_hint');
+  String get passwordValidation => translate('password_validation');
+  String get verifyCredentials => translate('verify_credentials');
+  String get verifying => translate('verifying');
+  String get completeAllFields => translate('complete_all_fields');
+  String get credentialsVerified => translate('credentials_verified');
+  String get credentialsInvalid => translate('credentials_invalid');
+
+  // Help Dialog
+  String get supportedFormats => translate('supported_formats');
+  String get supportedFormatsDesc => translate('supported_formats_desc');
+  String get xtreamUrl => translate('xtream_url');
+  String get xtreamUrlDesc => translate('xtream_url_desc');
+  String get epg => translate('epg');
+  String get epgDesc => translate('epg_desc');
+  String get update => translate('update');
+  String get updateDesc => translate('update_desc');
+  String get understood => translate('understood');
+
+  // Loading Dialog
+  String get loadingPlaylist => translate('loading_playlist');
+  String get updatingPlaylist => translate('updating_playlist');
+  String get downloadingChannels => translate('downloading_channels');
+
+  // Date
+  String get never => translate('never');
+
+  // Playlist Info Dialog
+  String get information => translate('information');
+  String get name => translate('name');
+  String get channelsCount => translate('channels_count');
+  String get updated => translate('updated');
+  String get authentication => translate('authentication');
+  String get url => translate('url');
+  String get authenticated => translate('authenticated');
+  String get active => translate('active');
+  String get refresh => translate('refresh');
+  String get moreOptions => translate('more_options');
+  String get channelsLowercase => translate('channels');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

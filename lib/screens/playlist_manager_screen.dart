@@ -6,6 +6,7 @@ import '../services/m3u_parser.dart';
 import '../services/epg_service.dart';
 import '../services/xtream_service.dart';
 import '../services/preferences_service.dart';
+import '../l10n/app_localizations.dart';
 
 class PlaylistManagerScreen extends StatefulWidget {
   const PlaylistManagerScreen({Key? key}) : super(key: key);
@@ -501,31 +502,33 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
   void _showPlaylistInfo(Playlist playlist) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E2A3A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.info_outline, color: Colors.blue),
-            const SizedBox(width: 12),
-            const Text(
-              'Información',
-              style: TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _infoRow('Nombre', playlist.name),
-            _infoRow('Canales', '${playlist.channelCount}'),
-            _infoRow('Actualizado', _formatDateTime(playlist.lastUpdated)),
-            _infoRow('Autenticación', playlist.username != null ? 'Sí' : 'No'),
+      builder: (context) {
+        final l10n = AppLocalizations.of(context);
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E2A3A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.blue),
+              const SizedBox(width: 12),
+              Text(
+                l10n.information,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _infoRow(l10n.name, playlist.name),
+              _infoRow(l10n.channelsCount, '${playlist.channelCount}'),
+              _infoRow(l10n.updated, _formatDateTime(playlist.lastUpdated, l10n)),
+              _infoRow(l10n.authentication, playlist.username != null ? l10n.yes : l10n.no),
             const SizedBox(height: 12),
-            const Text(
-              'URL:',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
+            Text(
+              l10n.url,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
             const SizedBox(height: 4),
             Container(
@@ -544,10 +547,11 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            child: Text(l10n.close),
           ),
         ],
-      ),
+        );
+      },
     );
   }
 
@@ -566,6 +570,7 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFF0A1929),
       appBar: AppBar(
@@ -575,33 +580,33 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Gestión de Playlists',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          l10n.playlistManagement,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline, color: Colors.white54),
-            onPressed: _showHelp,
-            tooltip: 'Ayuda',
+            onPressed: () => _showHelp(l10n),
+            tooltip: l10n.help,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _playlists.isEmpty
-              ? _buildEmptyState()
+              ? _buildEmptyState(l10n)
               : _buildPlaylistList(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addPlaylist,
         backgroundColor: Colors.blue,
         icon: const Icon(Icons.add),
-        label: const Text('Nueva Playlist'),
+        label: Text(l10n.newPlaylist),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -620,9 +625,9 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Sin playlists',
-            style: TextStyle(
+          Text(
+            l10n.noPlaylists,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -630,7 +635,7 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Agrega tu primera playlist IPTV\npara comenzar a ver contenido',
+            l10n.addFirstPlaylist,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white.withOpacity(0.6),
@@ -646,7 +651,7 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             icon: const Icon(Icons.add),
-            label: const Text('Agregar Playlist'),
+            label: Text(l10n.addPlaylist),
           ),
         ],
       ),
@@ -654,17 +659,18 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
   }
 
   Widget _buildPlaylistList() {
+    final l10n = AppLocalizations.of(context);
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _playlists.length,
       itemBuilder: (context, index) {
         final playlist = _playlists[index];
-        return _buildPlaylistCard(playlist);
+        return _buildPlaylistCard(playlist, l10n);
       },
     );
   }
 
-  Widget _buildPlaylistCard(Playlist playlist) {
+  Widget _buildPlaylistCard(Playlist playlist, AppLocalizations l10n) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -722,27 +728,27 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
                         children: [
                           _buildInfoChip(
                             Icons.tv,
-                            '${playlist.channelCount} canales',
+                            '${playlist.channelCount} ${l10n.channelsLowercase}',
                           ),
                           const SizedBox(width: 12),
                           if (playlist.username != null)
                             _buildInfoChip(
                               Icons.lock,
-                              'Autenticado',
+                              l10n.authenticated,
                               color: Colors.green,
                             ),
                           const SizedBox(width: 12),
                           if (playlist.id == _activePlaylistId)
                             _buildInfoChip(
                               Icons.check_circle,
-                              'Activa',
+                              l10n.active,
                               color: Colors.blue,
                             ),
                         ],
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Actualizado: ${_formatDate(playlist.lastUpdated)}',
+                        'Actualizado: ${_formatDate(playlist.lastUpdated, l10n)}',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.5),
                           fontSize: 12,
@@ -759,12 +765,12 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
                     IconButton(
                       icon: const Icon(Icons.refresh, color: Colors.white54),
                       onPressed: () => _refreshPlaylist(playlist),
-                      tooltip: 'Actualizar',
+                      tooltip: l10n.refresh,
                     ),
                     IconButton(
                       icon: const Icon(Icons.more_vert, color: Colors.white54),
                       onPressed: () => _showPlaylistOptions(playlist),
-                      tooltip: 'Más opciones',
+                      tooltip: l10n.moreOptions,
                     ),
                   ],
                 ),
@@ -793,7 +799,7 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
     );
   }
 
-  void _showHelp() {
+  void _showHelp(AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -803,23 +809,23 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
           children: [
             const Icon(Icons.help_outline, color: Colors.blue),
             const SizedBox(width: 12),
-            const Text('Ayuda', style: TextStyle(color: Colors.white)),
+            Text(l10n.help, style: const TextStyle(color: Colors.white)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _helpItem('Formatos soportados:', 'M3U, M3U8, Xtream Codes API'),
-            _helpItem('URL Xtream:', 'El sistema detecta automáticamente credenciales y carga el EPG'),
-            _helpItem('EPG:', 'La guía de programación se carga automáticamente si está disponible'),
-            _helpItem('Actualizar:', 'Usa el botón de refresh para recargar los canales'),
+            _helpItem(l10n.supportedFormats, l10n.supportedFormatsDesc),
+            _helpItem(l10n.xtreamUrl, l10n.xtreamUrlDesc),
+            _helpItem(l10n.epg, l10n.epgDesc),
+            _helpItem(l10n.update, l10n.updateDesc),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Entendido'),
+            child: Text(l10n.understood),
           ),
         ],
       ),
@@ -839,13 +845,13 @@ class _PlaylistManagerScreenState extends State<PlaylistManagerScreen> {
     );
   }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'Nunca';
+  String _formatDate(DateTime? date, AppLocalizations l10n) {
+    if (date == null) return l10n.never;
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  String _formatDateTime(DateTime? date) {
-    if (date == null) return 'Nunca';
+  String _formatDateTime(DateTime? date, AppLocalizations l10n) {
+    if (date == null) return l10n.never;
     return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
@@ -859,6 +865,7 @@ class _LoadingDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
       backgroundColor: const Color(0xFF1E2A3A),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -869,7 +876,7 @@ class _LoadingDialog extends StatelessWidget {
           const CircularProgressIndicator(),
           const SizedBox(height: 24),
           Text(
-            isEdit ? 'Actualizando playlist...' : 'Cargando playlist...',
+            isEdit ? l10n.updatingPlaylist : l10n.loadingPlaylist,
             style: const TextStyle(color: Colors.white, fontSize: 16),
           ),
           const SizedBox(height: 8),
@@ -879,7 +886,7 @@ class _LoadingDialog extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Descargando y procesando canales...',
+            l10n.downloadingChannels,
             style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
           ),
         ],
@@ -934,8 +941,10 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
   }
 
   Future<void> _verifyXtreamCredentials() async {
+    final l10n = AppLocalizations.of(context);
+
     if (_hostController.text.isEmpty || _usernameController.text.isEmpty || _passwordController.text.isEmpty) {
-      setState(() => _verificationMessage = 'Completa todos los campos');
+      setState(() => _verificationMessage = l10n.completeAllFields);
       return;
     }
 
@@ -954,9 +963,10 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
       final isValid = await service.verifyCredentials();
 
       if (mounted) {
+        final l10n = AppLocalizations.of(context);
         setState(() {
           _isVerifying = false;
-          _verificationMessage = isValid ? 'Credenciales verificadas' : 'Credenciales inválidas';
+          _verificationMessage = isValid ? l10n.credentialsVerified : l10n.credentialsInvalid;
         });
       }
     } catch (e) {
@@ -971,6 +981,7 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFF1E2A3A),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1003,7 +1014,7 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isEditing ? 'Editar Playlist' : 'Nueva Playlist',
+                        isEditing ? l10n.editPlaylist : l10n.newPlaylist,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -1011,7 +1022,7 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                         ),
                       ),
                       Text(
-                        isEditing ? 'Modifica los datos de tu playlist' : 'Agrega una nueva playlist IPTV',
+                        isEditing ? l10n.modifyPlaylistSubtitle : l10n.addNewPlaylistSubtitle,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.6),
                           fontSize: 12,
@@ -1027,12 +1038,12 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
               // Name field
               _buildTextField(
                 controller: _nameController,
-                label: 'Nombre de la playlist',
-                hint: 'Mi IPTV',
+                label: l10n.playlistNameLabel,
+                hint: l10n.playlistNameHint,
                 icon: Icons.label_outline,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Ingresa un nombre';
+                    return l10n.playlistNameValidation;
                   }
                   return null;
                 },
@@ -1112,16 +1123,16 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
               if (_sourceType == PlaylistSourceType.m3u) ...[
                 _buildTextField(
                   controller: _urlController,
-                  label: 'URL de la playlist',
-                  hint: 'https://ejemplo.com/playlist.m3u',
+                  label: l10n.playlistUrlLabel,
+                  hint: l10n.playlistUrlHint,
                   icon: Icons.link,
                   maxLines: 2,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Ingresa la URL';
+                      return l10n.playlistUrlValidation;
                     }
                     if (!value.startsWith('http://') && !value.startsWith('https://')) {
-                      return 'La URL debe comenzar con http:// o https://';
+                      return l10n.urlValidationProtocol;
                     }
                     return null;
                   },
@@ -1132,15 +1143,15 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
               if (_sourceType == PlaylistSourceType.xtreamCodes) ...[
                 _buildTextField(
                   controller: _hostController,
-                  label: 'Host del servidor',
-                  hint: 'http://servidor.com:8080',
+                  label: l10n.serverHostLabel,
+                  hint: l10n.serverHostHint,
                   icon: Icons.storage,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Ingresa el host';
+                      return l10n.serverHostValidation;
                     }
                     if (!value.startsWith('http://') && !value.startsWith('https://')) {
-                      return 'Debe comenzar con http:// o https://';
+                      return l10n.protocolValidation;
                     }
                     return null;
                   },
@@ -1151,12 +1162,12 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                     Expanded(
                       child: _buildTextField(
                         controller: _usernameController,
-                        label: 'Usuario',
-                        hint: 'username',
+                        label: l10n.usernameLabel,
+                        hint: l10n.usernameHint,
                         icon: Icons.person_outline,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Requerido';
+                            return l10n.usernameValidation;
                           }
                           return null;
                         },
@@ -1166,8 +1177,8 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                     Expanded(
                       child: _buildTextField(
                         controller: _passwordController,
-                        label: 'Contraseña',
-                        hint: '••••••',
+                        label: l10n.passwordLabel,
+                        hint: l10n.passwordHint,
                         icon: Icons.lock_outline,
                         obscureText: !_showPassword,
                         suffixIcon: IconButton(
@@ -1179,7 +1190,7 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Requerido';
+                            return l10n.passwordValidation;
                           }
                           return null;
                         },
@@ -1208,9 +1219,9 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : const Text(
-                            'Verificar Credenciales',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        : Text(
+                            l10n.verifyCredentials,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                   ),
                 ),
@@ -1251,7 +1262,7 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
-                    child: const Text('Cancelar'),
+                    child: Text(l10n.cancel),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
@@ -1262,7 +1273,7 @@ class _PlaylistDialogState extends State<PlaylistDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     icon: Icon(isEditing ? Icons.save : Icons.add),
-                    label: Text(isEditing ? 'Guardar' : 'Agregar'),
+                    label: Text(isEditing ? l10n.save : l10n.add),
                   ),
                 ],
               ),
