@@ -214,7 +214,7 @@ The MSIX package will be at: `build\windows\x64\runner\Release\`
 
 ### 1. Add a Playlist
 
-From the main dashboard, click on **"Listas"** (Lists) and then the **"+"** button:
+From the main dashboard, click on **"Lists"** and then the **"+"** button:
 
 **Simple M3U Playlist:**
 ```
@@ -261,17 +261,57 @@ URL: http://server.com:8080/get.php?username=user&password=pass&type=m3u_plus
 
 ```
 lib/
-├── models/           # Data models (Channel, Playlist, Series)
-├── services/         # Services (Database, M3U Parser, Series Parser)
-├── screens/          # Application screens
-│   ├── dashboard_screen.dart
-│   ├── live_tv_screen.dart
-│   ├── content_grid_screen.dart
-│   ├── series_grid_screen.dart
-│   ├── series_detail_screen.dart
-│   ├── video_player_screen.dart
-│   └── playlist_manager_screen.dart
-└── main.dart         # Application entry point
+├── models/                      # Data models
+│   ├── channel.dart             # Channel model
+│   ├── playlist.dart            # Playlist model
+│   ├── series.dart              # Series model
+│   ├── series_item.dart         # Seasons and episodes
+│   ├── vod_item.dart            # VOD movies
+│   ├── epg.dart                 # Electronic Program Guide
+│   └── profile.dart             # User profiles
+├── services/                    # Services
+│   ├── database_service.dart    # Isar database
+│   ├── m3u_parser.dart          # M3U playlist parser
+│   ├── xtream_service.dart      # Xtream Codes API
+│   ├── series_parser.dart       # Series parser
+│   ├── epg_service.dart         # EPG service
+│   ├── tmdb_service.dart        # TMDB API for ratings
+│   ├── config_service.dart      # API configuration
+│   ├── preferences_service.dart # User preferences
+│   └── language_service.dart    # Language service
+├── providers/                   # State management
+│   ├── content_provider.dart    # Content provider
+│   └── theme_provider.dart      # Theme provider
+├── screens/                     # Application screens
+│   ├── dashboard_screen.dart    # Main dashboard (Desktop/Tablet)
+│   ├── mobile_dashboard_screen.dart # Mobile dashboard
+│   ├── live_tv_screen.dart      # Live TV (Desktop/Tablet)
+│   ├── mobile_live_tv_screen.dart # Mobile live TV
+│   ├── content_grid_screen.dart # Movies grid
+│   ├── mobile_movies_screen.dart # Mobile movies
+│   ├── movie_detail_screen.dart # Movie detail
+│   ├── mobile_movie_detail_screen.dart # Mobile movie detail
+│   ├── series_grid_screen.dart  # Series grid
+│   ├── mobile_series_screen.dart # Mobile series
+│   ├── series_detail_screen.dart # Series detail
+│   ├── mobile_series_detail_screen.dart # Mobile series detail
+│   ├── video_player_screen.dart # Player (Desktop/Tablet)
+│   ├── mobile_video_player_screen.dart # Mobile player
+│   ├── android_video_player_screen.dart # Android player
+│   ├── playlist_manager_screen.dart # Playlist management
+│   ├── epg_screen.dart          # Program guide
+│   ├── profiles_screen.dart     # Profile management
+│   ├── settings_screen.dart     # Settings
+│   ├── add_source_screen.dart   # Add sources
+│   └── home_screen.dart         # Home screen
+├── widgets/                     # Reusable widgets
+│   ├── theme_selector.dart      # Theme selector
+│   ├── language_selector.dart   # Language selector
+│   ├── welcome_dialog.dart      # Welcome dialog
+│   └── animated_widgets.dart    # Animated widgets
+├── l10n/                        # Internationalization
+│   └── app_localizations.dart   # Translations (ES, EN, ZH, RU)
+└── main.dart                    # Application entry point
 ```
 
 ## 🔮 Pending Features

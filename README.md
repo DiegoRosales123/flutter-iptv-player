@@ -296,16 +296,57 @@ URL: http://server.com:8080/get.php?username=usuario&password=clave&type=m3u_plu
 
 ```
 lib/
-├── models/           # Modelos de datos (Channel, Playlist, Series)
-├── services/         # Servicios (Database, M3U Parser, Series Parser)
-├── screens/          # Pantallas de la aplicación
-│   ├── dashboard_screen.dart
-│   ├── live_tv_screen.dart
-│   ├── content_grid_screen.dart
-│   ├── series_grid_screen.dart
-│   ├── video_player_screen.dart
-│   └── playlist_manager_screen.dart
-└── main.dart         # Punto de entrada de la aplicación
+├── models/                      # Modelos de datos
+│   ├── channel.dart             # Modelo de canales
+│   ├── playlist.dart            # Modelo de playlists
+│   ├── series.dart              # Modelo de series
+│   ├── series_item.dart         # Temporadas y episodios
+│   ├── vod_item.dart            # Películas VOD
+│   ├── epg.dart                 # Guía electrónica de programación
+│   └── profile.dart             # Perfiles de usuario
+├── services/                    # Servicios
+│   ├── database_service.dart    # Base de datos Isar
+│   ├── m3u_parser.dart          # Parser de playlists M3U
+│   ├── xtream_service.dart      # API Xtream Codes
+│   ├── series_parser.dart       # Parser de series
+│   ├── epg_service.dart         # Servicio EPG
+│   ├── tmdb_service.dart        # API TMDB para calificaciones
+│   ├── config_service.dart      # Configuración de APIs
+│   ├── preferences_service.dart # Preferencias del usuario
+│   └── language_service.dart    # Servicio de idiomas
+├── providers/                   # Gestión de estado
+│   ├── content_provider.dart    # Provider de contenido
+│   └── theme_provider.dart      # Provider de temas
+├── screens/                     # Pantallas de la aplicación
+│   ├── dashboard_screen.dart    # Dashboard principal (Desktop/Tablet)
+│   ├── mobile_dashboard_screen.dart # Dashboard móvil
+│   ├── live_tv_screen.dart      # TV en vivo (Desktop/Tablet)
+│   ├── mobile_live_tv_screen.dart # TV en vivo móvil
+│   ├── content_grid_screen.dart # Grilla de películas
+│   ├── mobile_movies_screen.dart # Películas móvil
+│   ├── movie_detail_screen.dart # Detalle de película
+│   ├── mobile_movie_detail_screen.dart # Detalle película móvil
+│   ├── series_grid_screen.dart  # Grilla de series
+│   ├── mobile_series_screen.dart # Series móvil
+│   ├── series_detail_screen.dart # Detalle de serie
+│   ├── mobile_series_detail_screen.dart # Detalle serie móvil
+│   ├── video_player_screen.dart # Reproductor (Desktop/Tablet)
+│   ├── mobile_video_player_screen.dart # Reproductor móvil
+│   ├── android_video_player_screen.dart # Reproductor Android
+│   ├── playlist_manager_screen.dart # Gestión de playlists
+│   ├── epg_screen.dart          # Guía de programación
+│   ├── profiles_screen.dart     # Gestión de perfiles
+│   ├── settings_screen.dart     # Configuración
+│   ├── add_source_screen.dart   # Agregar fuentes
+│   └── home_screen.dart         # Pantalla inicial
+├── widgets/                     # Widgets reutilizables
+│   ├── theme_selector.dart      # Selector de temas
+│   ├── language_selector.dart   # Selector de idiomas
+│   ├── welcome_dialog.dart      # Diálogo de bienvenida
+│   └── animated_widgets.dart    # Widgets animados
+├── l10n/                        # Internacionalización
+│   └── app_localizations.dart   # Traducciones (ES, EN, ZH, RU)
+└── main.dart                    # Punto de entrada de la aplicación
 ```
 
 ## 🔮 Características Pendientes
